@@ -50,7 +50,16 @@ public partial class App : System.Windows.Application
         _store = new SaveStore();
         _save = _store.Load();
 
-        _petWindow = new PetWindow(_store, _save);
+        var sprites = new Rendering.SpriteCache();
+
+        // Pet yoksa bu ilk açılış: tür seçimi olmadan devam edilemez.
+        if (_save.Pet is null && !RunOnboarding(sprites))
+        {
+            Shutdown();
+            return;
+        }
+
+        _petWindow = new PetWindow(_store, _save, sprites);
 
         _tray = new TrayIconService();
         _tray.ToggleVisibilityRequested += (_, _) =>
@@ -66,6 +75,22 @@ public partial class App : System.Windows.Application
         _petWindow.Show();
         _tray.SetPetVisible(_petWindow.IsPetVisible);
         _fullscreen.Start();
+    }
+
+    /// <summary>
+    /// Tür seçimi ekranını gösterir. Kullanıcı kapatırsa false döner ve uygulama
+    /// açılmaz — yarım kurulmuş bir pet ile devam etmek kayıt şemasını bozar.
+    /// </summary>
+    private bool RunOnboarding(Rendering.SpriteCache sprites)
+    {
+        var window = new OnboardingWindow(sprites);
+        if (window.ShowDialog() != true) return false;
+
+        _save!.Pet = Core.Simulation.PetSimulation.CreateNew(
+            window.SelectedSpeciesId, window.PetName, DateTimeOffset.UtcNow);
+
+        _store!.Save(_save);
+        return true;
     }
 
     protected override void OnExit(ExitEventArgs e)

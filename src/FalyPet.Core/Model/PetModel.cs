@@ -33,6 +33,24 @@ public enum CareAction
     Pet,
 }
 
+/// <summary>
+/// Ekranda o an hangi animasyonun oynadığı. Ruh halinden ayrı tutuluyor:
+/// ruh hali uzun süreli bir durum, animasyon anlık bir eylem olabilir
+/// (mutlu bir pet de yürür, hasta bir pet de yer).
+/// </summary>
+public enum PetAnimation
+{
+    Idle,
+    Walk,
+    Sleep,
+    Eat,
+    Drink,
+    Play,
+    Wash,
+    Sick,
+    Sulk,
+}
+
 public enum PetMood
 {
     Happy,
