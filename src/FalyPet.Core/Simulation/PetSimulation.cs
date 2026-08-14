@@ -16,7 +16,16 @@ public sealed class PetSimulation(PetSave state)
     public GrowthStage Stage => _state.Stage;
     public Needs Needs => _state.Needs;
     public int CarePoints => _state.CarePoints;
+    public int Coins => _state.Coins;
     public bool IsSleeping => _state.IsSleeping;
+
+    /// <summary>Dükkandan alışveriş. Parası yetmezse hiçbir şey değişmez.</summary>
+    public bool TrySpendCoins(int amount)
+    {
+        if (amount < 0 || _state.Coins < amount) return false;
+        _state.Coins -= amount;
+        return true;
+    }
 
     /// <summary>Yeni bir pet yaratır. Yumurta aşamasından başlar.</summary>
     public static PetSave CreateNew(string speciesId, string name, DateTimeOffset now) => new()
@@ -230,6 +239,7 @@ public sealed class PetSimulation(PetSave state)
         if (points <= 0) return;
 
         _state.CarePoints += points;
+        _state.Coins += points * SimulationRules.CoinsPerCarePoint;
 
         // Tek seferde birden çok aşama atlanabilir (uzun bir birikim sonrası).
         while (SimulationRules.NextStage(_state.Stage) is { } next

@@ -1,9 +1,12 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using FalyPet.App.Services;
 using FalyPet.App.Ui;
 using FalyPet.Core.Persistence;
+using Velopack;
 
 namespace FalyPet.App;
 
@@ -21,9 +24,16 @@ public partial class App : System.Windows.Application
     private PetWindow? _petWindow;
     private TrayIconService? _tray;
     private FullscreenDetector? _fullscreen;
+    private UpdateService? _updates;
+    private DispatcherTimer? _updateTimer;
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // EN BAŞTA olmak zorunda. Velopack kurulum, güncelleme ve kaldırma
+        // adımlarında uygulamayı özel argümanlarla çalıştırır ve hızlıca çıkmasını
+        // bekler; UI kurulmadan, hatta tek örnek kilidi alınmadan önce ele geçmeli.
+        VelopackApp.Build().SetArgs(e.Args).Run();
+
         base.OnStartup(e);
 
         // Teşhis modu: pencere açmadan sprite'ları diske döküp çıkar.
@@ -68,6 +78,7 @@ public partial class App : System.Windows.Application
             _tray.SetPetVisible(_petWindow.IsPetVisible);
         };
         _tray.ExitRequested += (_, _) => Shutdown();
+        _tray.CheckUpdatesRequested += (_, _) => _ = CheckUpdatesAsync(announceWhenUpToDate: true);
 
         _fullscreen = new FullscreenDetector();
         _fullscreen.ShouldHideChanged += (_, hide) => _petWindow.SetHiddenByFullscreen(hide);
@@ -75,6 +86,34 @@ public partial class App : System.Windows.Application
         _petWindow.Show();
         _tray.SetPetVisible(_petWindow.IsPetVisible);
         _fullscreen.Start();
+
+        _updates = new UpdateService();
+        _tray.SetVersion(_updates.CurrentVersion);
+        _tray.SetUpdatesSupported(_updates.IsAvailable);
+
+        // Açılışta bir kez, sonra altı saatte bir. Daha sık denetlemek GitHub'a
+        // gereksiz istek, daha seyrek denetlemek güncellemeyi günlerce geciktirir.
+        _ = CheckUpdatesAsync(announceWhenUpToDate: false);
+        _updateTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromHours(6) };
+        _updateTimer.Tick += (_, _) => _ = CheckUpdatesAsync(announceWhenUpToDate: false);
+        _updateTimer.Start();
+    }
+
+    private async Task CheckUpdatesAsync(bool announceWhenUpToDate)
+    {
+        if (_updates is null) return;
+
+        if (!_updates.IsAvailable)
+        {
+            if (announceWhenUpToDate)
+                _tray?.ShowMessage("FalyPet", "Güncelleme yalnızca kurulu sürümde denetlenebilir.");
+            return;
+        }
+
+        var message = await _updates.CheckAndStageAsync();
+
+        if (message is not null) _tray?.ShowMessage("FalyPet güncellendi", message);
+        else if (announceWhenUpToDate) _tray?.ShowMessage("FalyPet", "En güncel sürümü kullanıyorsun.");
     }
 
     /// <summary>
@@ -95,6 +134,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _updateTimer?.Stop();
         _petWindow?.SaveOnExit();
         _fullscreen?.Dispose();
         _tray?.Dispose();

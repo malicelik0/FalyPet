@@ -125,6 +125,16 @@ public static class SimulationRules
 
     // ------------------------------------------------------------------ büyüme
 
+    // ------------------------------------------------------------------ ekonomi
+
+    /// <summary>
+    /// Bakım puanı başına kazanılan coin. Coin ayrı bir kaynak değil, bakımın
+    /// yan ürünü: ilgilenen kullanıcı zaten kazanır, ayrıca uğraşması gerekmez.
+    /// </summary>
+    public const int CoinsPerCarePoint = 2;
+
+    // ------------------------------------------------------------------ büyüme
+
     /// <summary>Yumurtanın çatlaması için gereken okşama sayısı.</summary>
     public const int EggCracksRequired = 3;
 

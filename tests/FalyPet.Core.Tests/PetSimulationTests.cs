@@ -366,6 +366,46 @@ public sealed class PetSimulationTests
         Assert.Contains("Momo", reason);
     }
 
+    // ------------------------------------------------------------------ ekonomi
+
+    [Fact]
+    public void Bakim_puani_kazanmak_coin_de_kazandirir()
+    {
+        var sim = NewBaby(out var now);
+        Ilerlet(sim, ref now, TimeSpan.FromHours(7));
+
+        var result = sim.Apply(CareAction.Feed, now);
+
+        Assert.Equal(result.CarePointsGained * SimulationRules.CoinsPerCarePoint, sim.Coins);
+    }
+
+    [Fact]
+    public void Puan_getirmeyen_bakim_coin_de_getirmez()
+    {
+        var sim = NewBaby(out var now);
+        Ilerlet(sim, ref now, TimeSpan.FromHours(2)); // aç ama ödül eşiğinin üstünde
+
+        sim.Apply(CareAction.Feed, now);
+
+        Assert.Equal(0, sim.Coins);
+    }
+
+    [Fact]
+    public void Parasi_yetmeyen_alisveris_hicbir_seyi_degistirmez()
+    {
+        var sim = NewBaby(out var now);
+        Ilerlet(sim, ref now, TimeSpan.FromHours(7));
+        sim.Apply(CareAction.Feed, now);
+
+        var oncesi = sim.Coins;
+
+        Assert.False(sim.TrySpendCoins(oncesi + 1));
+        Assert.Equal(oncesi, sim.Coins);
+
+        Assert.True(sim.TrySpendCoins(oncesi));
+        Assert.Equal(0, sim.Coins);
+    }
+
     // ------------------------------------------------------------------ büyüme
 
     [Fact]

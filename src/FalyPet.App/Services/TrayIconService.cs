@@ -23,9 +23,12 @@ internal sealed class TrayIconService : IDisposable
 
     private readonly WinForms.NotifyIcon _icon;
     private readonly WinForms.ToolStripMenuItem _visibilityItem;
+    private readonly WinForms.ToolStripMenuItem _autoStartItem;
+    private readonly WinForms.ToolStripMenuItem _updateItem;
     private IntPtr _iconHandle;
 
     public event EventHandler? ToggleVisibilityRequested;
+    public event EventHandler? CheckUpdatesRequested;
     public event EventHandler? ExitRequested;
 
     public TrayIconService()
@@ -35,6 +38,29 @@ internal sealed class TrayIconService : IDisposable
         _visibilityItem = new WinForms.ToolStripMenuItem("Gizle");
         _visibilityItem.Click += (_, _) => ToggleVisibilityRequested?.Invoke(this, EventArgs.Empty);
         menu.Items.Add(_visibilityItem);
+
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+
+        _autoStartItem = new WinForms.ToolStripMenuItem("Windows ile başlat")
+        {
+            CheckOnClick = true,
+            Checked = AutoStartService.IsEnabled,
+        };
+        _autoStartItem.CheckedChanged += (_, _) =>
+        {
+            // Yazma başarısız olursa (kısıtlı ortam, grup ilkesi) tik geri alınır —
+            // kullanıcı açık sanıp da çalışmadığını fark etmemeli.
+            if (!AutoStartService.TrySet(_autoStartItem.Checked))
+            {
+                _autoStartItem.Checked = AutoStartService.IsEnabled;
+                ShowMessage("FalyPet", "Windows ile başlatma ayarlanamadı.");
+            }
+        };
+        menu.Items.Add(_autoStartItem);
+
+        _updateItem = new WinForms.ToolStripMenuItem("Güncellemeleri denetle");
+        _updateItem.Click += (_, _) => CheckUpdatesRequested?.Invoke(this, EventArgs.Empty);
+        menu.Items.Add(_updateItem);
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
@@ -55,6 +81,15 @@ internal sealed class TrayIconService : IDisposable
 
     /// <summary>Menüdeki metni pencerenin gerçek durumuna göre günceller.</summary>
     public void SetPetVisible(bool visible) => _visibilityItem.Text = visible ? "Gizle" : "Göster";
+
+    public void SetVersion(string version) => _icon.Text = $"FalyPet {version}";
+
+    /// <summary>Kurulmamış (geliştirme) çalıştırmalarda güncelleme denetimi anlamsız.</summary>
+    public void SetUpdatesSupported(bool supported)
+    {
+        _updateItem.Enabled = supported;
+        if (!supported) _updateItem.Text = "Güncelleme (yalnızca kurulu sürümde)";
+    }
 
     public void ShowMessage(string title, string body) =>
         _icon.ShowBalloonTip(4000, title, body, WinForms.ToolTipIcon.None);

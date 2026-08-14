@@ -45,7 +45,8 @@ public partial class PetWindow : Window
     private TimeSpan _sinceSave;
 
     private AlphaMask _mask;
-    private (GrowthStage Stage, PetAnimation Anim, int Frame, bool Left) _renderedKey = (GrowthStage.Egg, PetAnimation.Idle, -1, false);
+    private (GrowthStage Stage, PetAnimation Anim, int Frame, bool Left, string Costume) _renderedKey
+        = (GrowthStage.Egg, PetAnimation.Idle, -1, false, "");
     private GrowthStage _lastStage;
 
     private bool _dragging;
@@ -182,12 +183,14 @@ public partial class PetWindow : Window
     {
         // Yumurtada "kare" animasyon karesi değil çatlak sayısıdır.
         var frame = _sim.Stage == GrowthStage.Egg ? _save.Pet!.EggCracks : _behavior.Frame;
-        var key = (_sim.Stage, _behavior.Animation, frame, _behavior.FaceLeft);
+        var costumeId = _save.Pet!.EquippedCostumeId ?? "";
+        var key = (_sim.Stage, _behavior.Animation, frame, _behavior.FaceLeft, costumeId);
         if (key == _renderedKey) return;
 
         _renderedKey = key;
-        SpriteImage.Source = _sprites.Get(_species, key.Item1, key.Item2, key.Item3, key.Item4);
-        _mask = _sprites.GetMask(_species, key.Item1, key.Item2, key.Item3, key.Item4);
+        var accessory = AccessoryCatalog.ById(_save.Pet.EquippedCostumeId);
+        SpriteImage.Source = _sprites.Get(_species, key.Item1, key.Item2, key.Item3, key.Item4, accessory);
+        _mask = _sprites.GetMask(_species, key.Item1, key.Item2, key.Item3, key.Item4, accessory);
     }
 
     // ---------------------------------------------------------------- konum
@@ -408,6 +411,7 @@ public partial class PetWindow : Window
 
         menu.Items.Add(new Separator());
         AddItem(menu, "Durum", ShowStatus);
+        AddItem(menu, "Dükkan", OpenShop);
 
         menu.Items.Add(new Separator());
         AddItem(menu, "Gizle", ToggleUserVisibility);
@@ -439,6 +443,23 @@ public partial class PetWindow : Window
         _sleepItem.Header = _sim.IsSleeping ? "Uyandır" : "Uyut";
     }
 
+    private ShopWindow? _shop;
+
+    private void OpenShop()
+    {
+        // Zaten açıksa öne getir — iki dükkan penceresi aynı kayda yazardı.
+        if (_shop is { IsVisible: true }) { _shop.Activate(); return; }
+
+        _shop = new ShopWindow(_sim, _store, _save, _species, _sprites);
+        _shop.CostumeChanged += (_, _) =>
+        {
+            // Anahtarı geçersiz kıl ki bir sonraki tikte sprite yeniden yüklensin.
+            _renderedKey = (_renderedKey.Stage, _renderedKey.Anim, -1, _renderedKey.Left, "");
+        };
+        _shop.Closed += (_, _) => _shop = null;
+        _shop.Show();
+    }
+
     private void ShowStatus()
     {
         if (_sim.Stage == GrowthStage.Egg)
@@ -453,7 +474,7 @@ public partial class PetWindow : Window
             $"{_save.Pet!.Name} · {StageLabel(_sim.Stage)}\n" +
             $"Açlık {n.Hunger:F0}  Su {n.Thirst:F0}  Enerji {n.Energy:F0}\n" +
             $"Mutluluk {n.Happiness:F0}  Temizlik {n.Cleanliness:F0}\n" +
-            $"Büyüme %{_sim.GrowthProgress * 100:F0}" +
+            $"Büyüme %{_sim.GrowthProgress * 100:F0}  ·  {_sim.Coins} coin" +
             (_sim.GrowthStallReason is { } stall ? $"\n{stall}" : "");
 
         Say(lines, TimeSpan.FromSeconds(7));

@@ -17,19 +17,20 @@ namespace FalyPet.App.Rendering;
 /// </summary>
 internal sealed class SpriteCache
 {
-    private readonly record struct Key(string Species, GrowthStage Stage, PetAnimation Anim, int Frame, bool FaceLeft);
+    private readonly record struct Key(string Species, GrowthStage Stage, PetAnimation Anim, int Frame, bool FaceLeft, string Accessory);
 
     private readonly Dictionary<Key, WriteableBitmap> _sprites = [];
     private readonly Dictionary<Key, AlphaMask> _masks = [];
 
-    public WriteableBitmap Get(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame, bool faceLeft)
+    public WriteableBitmap Get(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
+        bool faceLeft, AccessoryDefinition? accessory = null)
     {
-        var key = new Key(species.Id, stage, anim, frame, faceLeft);
+        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "");
         if (_sprites.TryGetValue(key, out var cached)) return cached;
 
         var sprite = stage == GrowthStage.Egg
             ? PetSpriteFactory.CreateEgg(species, frame)
-            : PetSpriteFactory.Create(species, stage, anim, frame);
+            : PetSpriteFactory.Create(species, stage, anim, frame, accessory);
 
         if (faceLeft) sprite = MirrorHorizontally(sprite);
 
@@ -37,12 +38,13 @@ internal sealed class SpriteCache
         return sprite;
     }
 
-    public AlphaMask GetMask(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame, bool faceLeft)
+    public AlphaMask GetMask(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
+        bool faceLeft, AccessoryDefinition? accessory = null)
     {
-        var key = new Key(species.Id, stage, anim, frame, faceLeft);
+        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "");
         if (_masks.TryGetValue(key, out var cached)) return cached;
 
-        var mask = AlphaMask.FromBitmap(Get(species, stage, anim, frame, faceLeft));
+        var mask = AlphaMask.FromBitmap(Get(species, stage, anim, frame, faceLeft, accessory));
         _masks[key] = mask;
         return mask;
     }

@@ -26,7 +26,8 @@ internal static class PetSpriteFactory
 
     private const double CenterX = 16.0;
 
-    public static WriteableBitmap Create(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame)
+    public static WriteableBitmap Create(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
+        AccessoryDefinition? accessory = null)
     {
         if (stage == GrowthStage.Egg) return CreateEgg(species, frame);
 
@@ -37,12 +38,25 @@ internal static class PetSpriteFactory
         var bob = BobOffset(anim, frame);
 
         if (species.Body == BodyShape.Blob)
-            DrawBlob(canvas, species, m, bob, anim, frame, outline);
+            DrawBlob(canvas, species, m, bob, anim, frame, outline, accessory);
         else
-            DrawCreature(canvas, species, m, bob, anim, frame, outline);
+            DrawCreature(canvas, species, m, bob, anim, frame, outline, accessory);
 
         return canvas.ToBitmap();
     }
+
+    /// <summary>
+    /// Aksesuarın kafa merkezinin ne kadar üstüne çıktığı (kafa yarıçapı katı).
+    /// Kulak kısıtlamasıyla aynı mantık: şapka takan bir pet'in kafası biraz
+    /// aşağı iner ki şapka kareyi taşmasın.
+    /// </summary>
+    private static double AccessoryTopExtent(AccessoryDefinition? accessory) => accessory?.Type switch
+    {
+        AccessoryType.Crown => 1.75,
+        AccessoryType.Hat => 1.65,
+        AccessoryType.Bow => 1.30,
+        _ => 0.0,
+    };
 
     // ---------------------------------------------------------------- ölçüler
 
@@ -109,15 +123,16 @@ internal static class PetSpriteFactory
     // ---------------------------------------------------------------- normal yaratık
 
     private static void DrawCreature(SpriteCanvas c, SpeciesDefinition s, Metrics m,
-        double bob, PetAnimation anim, int frame, uint outline)
+        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory)
     {
         var bodyCy = Ground - m.BodyRy + bob;
         var headCy = bodyCy - m.BodyRy - m.HeadR * 0.55 + bob * 0.4 + Slump(anim);
         var headCx = CenterX + HeadLean(anim, frame);
 
-        // Kafayı kulaklar taşmayacak kadar aşağıda tut. Kafa gövdeye biraz gömülür,
-        // bu görsel olarak sorun değil — taşan kulak ise sprite'ı bozuyor.
-        headCy = Math.Max(headCy, Ceiling + EarTopExtent(s.Ears) * m.HeadR);
+        // Kafayı kulaklar VE aksesuar taşmayacak kadar aşağıda tut. Kafa gövdeye
+        // biraz gömülür, bu görsel olarak sorun değil — taşan şapka ise sprite'ı bozuyor.
+        var topExtent = Math.Max(EarTopExtent(s.Ears), AccessoryTopExtent(accessory));
+        headCy = Math.Max(headCy, Ceiling + topExtent * m.HeadR);
 
         DrawTail(c, s, CenterX + m.BodyRx * 0.85, bodyCy, anim, frame);
         DrawFeet(c, s, m, Ground, anim, frame);
@@ -129,10 +144,11 @@ internal static class PetSpriteFactory
         DrawMarkings(c, s, m, bodyCy, headCx, headCy);
         c.Outline(outline);
         DrawFace(c, s, headCx, headCy, m.HeadR, anim, frame, outline);
+        DrawAccessory(c, accessory, headCx, headCy, m.HeadR);
     }
 
     private static void DrawBlob(SpriteCanvas c, SpeciesDefinition s, Metrics m,
-        double bob, PetAnimation anim, int frame, uint outline)
+        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory)
     {
         // Jöle/hayalet/ahtapotta ayrı kafa yok: tek kütle, yüz üst kısmında.
         // Yükseklik tavana göre kısıtlanıyor, yoksa yetişkin blob kareyi taşıyor.
@@ -150,7 +166,13 @@ internal static class PetSpriteFactory
 
         DrawMarkings(c, s, m, cy + ry * 0.35, CenterX, cy - ry * 0.30);
         c.Outline(outline);
-        DrawFace(c, s, CenterX, cy - ry * 0.28, m.HeadR * 0.95, anim, frame, outline);
+
+        var faceY = cy - ry * 0.28;
+        var faceR = m.HeadR * 0.95;
+        DrawFace(c, s, CenterX, faceY, faceR, anim, frame, outline);
+
+        // Blob'da aksesuar kütlenin tepesine oturur, yüzün hemen üstüne değil.
+        DrawAccessory(c, accessory, CenterX, Math.Max(faceY, cy - ry + faceR * 0.55), faceR);
     }
 
     /// <summary>Ahtapot dokunaçları — blob'un ALT KENARINA tutturulur, ölçüden türetilmez.</summary>
@@ -392,6 +414,68 @@ internal static class PetSpriteFactory
         c.Plot(px, py, ink); c.Plot(px + 1, py, ink); c.Plot(px + 2, py, ink);
         c.Plot(px + 1, py + 1, ink);
         c.Plot(px, py + 2, ink); c.Plot(px + 1, py + 2, ink); c.Plot(px + 2, py + 2, ink);
+    }
+
+    // ---------------------------------------------------------------- aksesuar
+
+    /// <summary>
+    /// Dükkandan alınan kostüm. Yüzden SONRA çiziliyor: gözlük gözlerin üstüne
+    /// gelmeli, şapka kulakları örtmeli.
+    /// </summary>
+    private static void DrawAccessory(SpriteCanvas c, AccessoryDefinition? accessory, double hx, double hy, double r)
+    {
+        if (accessory is null || accessory.Type == AccessoryType.None) return;
+
+        var color = accessory.Color;
+        var dark = SpriteCanvas.Darken(color, 0.35);
+
+        switch (accessory.Type)
+        {
+            case AccessoryType.Hat:
+                c.Ellipse(hx, hy - r * 0.82, r * 0.95, 1.1, dark);                 // siperlik
+                c.Ellipse(hx, hy - r * 1.22, r * 0.62, r * 0.42, color);           // kubbe
+                break;
+
+            case AccessoryType.Bow:
+                c.Triangle(hx + r * 0.30, hy - r * 0.95, hx + r * 0.95, hy - r * 1.25, hx + r * 0.95, hy - r * 0.62, color);
+                c.Triangle(hx + r * 0.30, hy - r * 0.95, hx - r * 0.35, hy - r * 1.25, hx - r * 0.35, hy - r * 0.62, color);
+                c.Ellipse(hx + r * 0.30, hy - r * 0.93, 1.1, 1.1, dark);           // düğüm
+                break;
+
+            case AccessoryType.Glasses:
+                var eyeDx = r * 0.42;
+                var eyeY = hy - r * 0.10;
+                DrawRing(c, hx - eyeDx, eyeY, 2.4, dark);
+                DrawRing(c, hx + eyeDx, eyeY, 2.4, dark);
+                c.Plot((int)hx, (int)eyeY, dark);                                   // köprü
+                break;
+
+            case AccessoryType.Scarf:
+                c.Ellipse(hx, hy + r * 0.92, r * 0.85, 1.5, color);                 // boyun bandı
+                c.Ellipse(hx + r * 0.70, hy + r * 1.45, 1.4, 2.4, dark);            // sarkan uç
+                break;
+
+            case AccessoryType.Crown:
+                c.Ellipse(hx, hy - r * 0.95, r * 0.72, 1.2, color);                 // taban
+                for (var i = -1; i <= 1; i++)
+                    c.Triangle(hx + i * r * 0.55 - r * 0.20, hy - r * 1.00,
+                               hx + i * r * 0.55 + r * 0.20, hy - r * 1.00,
+                               hx + i * r * 0.55, hy - r * 1.60, color);
+                break;
+        }
+    }
+
+    /// <summary>İçi boş çember — gözlük camı için.</summary>
+    private static void DrawRing(SpriteCanvas c, double cx, double cy, double radius, uint color)
+    {
+        for (var y = (int)(cy - radius); y <= (int)(cy + radius); y++)
+        for (var x = (int)(cx - radius); x <= (int)(cx + radius); x++)
+        {
+            var dx = x + 0.5 - cx;
+            var dy = y + 0.5 - cy;
+            var d = Math.Sqrt(dx * dx + dy * dy);
+            if (d <= radius && d >= radius - 1.1) c.Plot(x, y, color);
+        }
     }
 
     // ---------------------------------------------------------------- yumurta
