@@ -1,86 +1,90 @@
 # NEREDE KALDIK
 
-> Her oturuma bu dosyayı okuyarak başla. Plan: [01-PLAN.md](01-PLAN.md)
-> Son güncelleme: **15 Ağustos 2026**
+> Her oturuma bu dosyayı okuyarak başla.
+> Plan: [01-PLAN.md](01-PLAN.md) · Yayın: [02-YAYIN.md](02-YAYIN.md)
+> Son güncelleme: **15 Ağustos 2026, 01:15**
 
-## Durum: Faz 0 BİTTİ ✅ — sırada Faz 1 (sprite motoru)
+## Durum: Faz 0-5 ve 9'un kodu bitti · Faz 6-8 yapılmadı
 
-## Faz 0'da ne yapıldı
+Uygulama **oynanabilir**: tür seçiyorsun, yumurta çatlıyor, pet geziniyor,
+besleniyor, büyüyor, coin kazanıp dükkandan kostüm alıyor.
 
-Çözüm iskeleti: `FalyPet.Core` (saf simülasyon) + `FalyPet.App` (WPF) + `FalyPet.Core.Tests` (xunit).
+## Çalışır durumda olanlar
 
-Çalışan özellikler:
-- Saydam, her zaman üstte, görev çubuğunda ve Alt+Tab'da görünmeyen 160×160 pencere
-- 32×32 pixel-art yumurta placeholder, `NearestNeighbor` ile 5 kat büyütülmüş (bulanık değil)
-- **Alfaya dayalı tıkla-geç** — pet'in çevresindeki boşlukta tıklama alttaki pencereye geçer
-- Sürükle-bırak; tıklama ile sürükleme ayrı (tıklayınca pet eziliyor-toparlanıyor)
-- Konumun kalıcılığı + **çok monitörlü güvenli konumlandırma**
-- Tepsi ikonu (çalışma anında çiziliyor), Göster/Gizle + Çıkış menüsü, çift tıkla göster/gizle
-- Tek örnek kilidi (iki FalyPet aynı kaydı ezemez)
-- Tam ekran oyun algılama — oyun açılınca pet gizleniyor, çıkınca geri geliyor
-- Atomik kayıt yazma + otomatik yedek rotasyonu (`save.json` / `save.json.bak`)
+| Alan | Durum |
+|---|---|
+| Saydam always-on-top pencere, alfa tıkla-geç, sürükleme | ✅ ölçülerek doğrulandı |
+| Tepsi ikonu, tek örnek kilidi, tam ekran oyun algılama | ✅ |
+| Çok monitörlü güvenli konumlandırma | ✅ 5 senaryo test edildi |
+| İhtiyaç motoru, 8 saat tavanlı offline telafi | ✅ 39 test |
+| Bakım puanıyla büyüme (yumurta→bebek→çocuk→genç→yetişkin) | ✅ dikkatli kullanıcı 12 günde yetişkin |
+| Hasta / küskün kademeleri, kilitlenme yok | ✅ regresyon testli |
+| 10 tür prosedürel pixel-art sprite, 5 aşama, 9 durum | ✅ 110/110 otomatik denetim |
+| Gezinme, kenara oturma, 8 fps animasyon | ✅ ölçüldü (~37.5 DIP/s) |
+| Onboarding (tür seçimi + isim) | ✅ |
+| Sağ tık menüsü, bakım eylemleri, konuşma balonu, durum | ✅ |
+| Coin ekonomisi + kostüm dükkanı (5 aksesuar) | ✅ kod bitti, elle denenmedi |
+| Velopack otomatik güncelleme + Windows ile başlat | ⚠️ kod bitti, **paketleme doğrulanmadı** |
 
-## Faz 0'da bulunan ve düzeltilen iki gerçek hata
+## HEMEN SIRADAKİ İŞ — paketlemeyi doğrula
 
-**1. `double.NaN` kayıt sentineli çökmeye yol açıyordu.**
-"Henüz konumlanmadı" işaretçisi olarak `double.NaN` kullanılmıştı; `System.Text.Json`
-NaN'ı serileştiremeyip fırlatıyor. Pencere konumlanmadan kapanan bir oturumda uygulama
-çıkışta çöküyordu. Sentinel `double?` yapıldı. Regresyon testi:
-`Hic_konumlanmamis_pencere_kaydedilebilir`.
+`build\paket-yap.ps1` uçtan uca **hiç çalıştırılmadı**. Self-contained yayın
+sürerken süreçler durduruldu, `Releases/` çıktısı üretilmedi.
 
-**2. Ekran dışı konum kurtarma pet'i ölü bölgeye koyuyordu.**
-Kısıtlama sanal masaüstünün sınırlayıcı kutusuna göre yapılıyordu. Bu makinede
-2560×1440 + 1920×1080 düzeninde kutu 4480×1440 çıkıyor ama `(4448,1408)` noktası
-**hiçbir monitörde yok** — pet oraya konunca tamamen kayboluyordu. Artık
-`Screen.FromRectangle` ile en yakın gerçek monitörün çalışma alanına çekiliyor.
-
-## Nasıl çalıştırılır
-
-```
-dotnet run --project src/FalyPet.App
+```powershell
+cd C:\Users\QuarteX\Documents\FalyPet
+.\build\paket-yap.ps1 -Surum 1.0.0
 ```
 
-Sprite'ları denetlemek için (pencere açmadan PNG + alfa raporu üretir):
+**Önemli:** bu çalışırken başka `dotnet build` çalıştırma — `obj/` üzerinde
+çakışıyor, ilk denemede takılmasının sebebi buydu.
 
+Doğrulanacaklar:
+1. `Releases\FalyPet-win-Setup.exe` üretildi mi, boyutu ne?
+2. Setup çalıştırılınca `%LocalAppData%\FalyPet\current\` altına kuruluyor mu?
+3. Kurulu sürüm açılınca tepside sürüm numarası görünüyor mu (geliştirme değil)?
+4. `%APPDATA%\FalyPet\save.json` kurulumdan sonra da duruyor mu? (kritik)
+5. 1.0.1 paketleyip GitHub Release'e atınca kurulu sürüm kendini güncelliyor mu?
+
+## Yapılmayanlar
+
+- **Faz 6 — mini oyunlar**: hiç başlanmadı. Coin şu an sadece bakımdan geliyor.
+- **Faz 7 — cila**: ses efekti yok, ayarlar penceresi yok, kayıt yedekleme
+  arayüzü yok. "Windows ile başlat" var (tepsi menüsünde).
+- **Faz 8 — gerçek sanat**: sprite'lar prosedürel. Yerine gerçek sprite sheet
+  koymak için `SpriteCache.Get` içine dosyadan okuma eklenmeli; prosedürel
+  üretim yedek olarak kalmalı (bir türün sanatı eksikse oyun yine çalışsın).
+- **Per-monitor DPI (PerMonitorV2)**: uygulama sistem DPI'ına duyarlı. Bu
+  makinede iki monitör de %100 ölçekte olduğu için fark etmiyor; farklı
+  ölçekli monitörde pet kayar. `app.manifest` ile açılacak.
+
+## Bilinen sapma: RAM
+
+Plandaki hedef boşta **< 80 MB**. Ölçülen: **119.6 MB** (Debug derlemesi,
+pet + balon penceresi + sprite önbelleği). Release derlemesinde ölçüm
+yapılmadı. Faz 7'de ele alınacak; gerekirse sprite önbelleği aşamaya göre
+budanır (kullanıcı aynı anda tek aşamada).
+
+## Alınmış tasarım kararları (değiştirmeden önce 01-PLAN.md oku)
+
+1. **Ölüm yok** — hasta → küskün, iyileşme her zaman mümkün
+2. **Büyüme bakım EYLEMLERİNDEN** gelir, geçen süreden değil
+3. **Türü kullanıcı seçer**, 10 tür
+4. **Güncelleme uygulamayı yeniden başlatmaz** — çıkışta kurulur
+5. **Dükkan yalnızca kalıcı aksesuar satar**, tüketilebilir yiyecek yok
+
+## Komutlar
+
+```powershell
+dotnet run --project src/FalyPet.App          # çalıştır
+dotnet test FalyPet.sln                       # 39 test
+dotnet run --project src/FalyPet.App -- --dump-sprite C:\temp\s   # sprite denetimi
+.\build\paket-yap.ps1 -Surum 1.0.0            # sürüm paketi
 ```
-dotnet run --project src/FalyPet.App -- --dump-sprite C:\temp\sprite
-```
 
-Testler:
+## Yol boyunca bulunup düzeltilen hatalar
 
-```
-dotnet test FalyPet.sln
-```
-
-## Doğrulanan ölçümler (15 Ağu 2026)
-
-- Testler: **11/11 geçiyor**
-- Derleme: 0 uyarı, 0 hata
-- Pencere: 160×160, `WS_EX_TOPMOST` ✓, `WS_EX_TOOLWINDOW` ✓, `WS_EX_TRANSPARENT` imleç
-  pet üstünde değilken açık ✓
-- Konumlandırma 5 senaryoda da gerçek ekranda kalıyor (kayıtlı / uzak / ölü bölge /
-  2. monitör / kayıt yok)
-- Alfa maskesi: 4 köşe saydam, merkez opak, %39.1 dolu
-
-## Faz 0'da BİLEREK yapılmayanlar
-
-- **Per-monitor DPI (PerMonitorV2)**: uygulama şu an sistem DPI'ına duyarlı. Bu makinede
-  ölçek %100 olduğu için fark etmiyor, ama farklı ölçekli iki monitörde pet kayar.
-  Faz 1'de gezinme gelirken `app.manifest` ile açılacak.
-- **Gerçek ikon dosyası**: tepsi ikonu ve pet placeholder kodla çiziliyor. Faz 8'de değişecek.
-- **Windows ile başlat**: Faz 7.
-
-## Sıradaki iş — Faz 1
-
-1. Sprite sheet yükleyici (`PlaceholderSprite` yerine) + kare zamanlaması 8-12 fps
-2. Animasyon durum makinesi: idle / yürüme / uyuma
-3. Serbest gezinme + ekran kenarına oturma, 30 fps pozisyon güncellemesi
-4. PerMonitorV2 DPI + çok monitörlü gezinme
-5. Faz 1 doğrulaması: pet ekranda yürüyor, kenara oturuyor, 2. monitörde bozulmuyor
-
-## Açık kararlar (senin onayın bekliyor)
-
-`01-PLAN.md` bölüm 3'te ayrıntılı:
-1. **Ölüm var mı?** → Önerilen: hayır, yerine hasta/küskün kademeleri
-2. **Büyüme neye bağlı?** → Önerilen: duvar saatine değil, iyi bakılan süreye
-3. **v1'de kaç tür pet?** → Önerilen: 3 tür, gerisi içerik güncellemesiyle
+1. `double.NaN` kayıt sentineli — `System.Text.Json` NaN'ı serileştiremiyor, çıkışta çökme
+2. Ekran dışı kurtarma pet'i monitörsüz ölü bölgeye koyuyordu (2560×1440 + 1920×1080'de gerçek)
+3. Küskünlük kilitlenmesi — çıkış mutluluk istiyordu ama küskünken mutluluğu yükseltecek eylem yoktu
+4. 110 sprite'ın 48'i kareyi taşıyordu (kulak yükseklikleri, zemin kaydırma, blob dokunaçları)
