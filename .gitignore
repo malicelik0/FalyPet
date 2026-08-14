@@ -1,0 +1,16 @@
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+
+# Velopack paketleme çıktısı (Faz 9)
+Releases/
+publish/
+
+# Sprite denetim çıktısı (--dump-sprite)
+spritedump/

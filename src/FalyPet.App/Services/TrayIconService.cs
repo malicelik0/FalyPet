@@ -1,0 +1,97 @@
+using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+using WinForms = System.Windows.Forms;
+
+namespace FalyPet.App.Services;
+
+/// <summary>
+/// Bildirim alanı (tepsi) ikonu ve sağ tık menüsü.
+///
+/// WinForms'un NativeMethods'una gidiyoruz çünkü WPF'in kendi tepsi ikonu yok ve
+/// tek dış bağımlılık eklemek yerine .NET ile gelen NotifyIcon'u kullanmak
+/// hem sıfır NuGet hem de daha az bakım demek.
+///
+/// İkon çalışma anında çiziliyor — Faz 0'ın hiçbir sanat dosyasına bağımlı olmaması için.
+/// Faz 8'de gerçek bir .ico ile değiştirilecek.
+/// </summary>
+internal sealed class TrayIconService : IDisposable
+{
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
+    private readonly WinForms.NotifyIcon _icon;
+    private readonly WinForms.ToolStripMenuItem _visibilityItem;
+    private IntPtr _iconHandle;
+
+    public event EventHandler? ToggleVisibilityRequested;
+    public event EventHandler? ExitRequested;
+
+    public TrayIconService()
+    {
+        var menu = new WinForms.ContextMenuStrip();
+
+        _visibilityItem = new WinForms.ToolStripMenuItem("Gizle");
+        _visibilityItem.Click += (_, _) => ToggleVisibilityRequested?.Invoke(this, EventArgs.Empty);
+        menu.Items.Add(_visibilityItem);
+
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+
+        var exitItem = new WinForms.ToolStripMenuItem("Çıkış");
+        exitItem.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
+        menu.Items.Add(exitItem);
+
+        _icon = new WinForms.NotifyIcon
+        {
+            Icon = CreateIcon(out _iconHandle),
+            Text = "FalyPet",
+            Visible = true,
+            ContextMenuStrip = menu,
+        };
+
+        _icon.DoubleClick += (_, _) => ToggleVisibilityRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Menüdeki metni pencerenin gerçek durumuna göre günceller.</summary>
+    public void SetPetVisible(bool visible) => _visibilityItem.Text = visible ? "Gizle" : "Göster";
+
+    public void ShowMessage(string title, string body) =>
+        _icon.ShowBalloonTip(4000, title, body, WinForms.ToolTipIcon.None);
+
+    private static Icon CreateIcon(out IntPtr handle)
+    {
+        using var bitmap = new Bitmap(32, 32);
+        using (var g = Graphics.FromImage(bitmap))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(Color.Transparent);
+
+            var body = new Rectangle(7, 3, 18, 26);
+            using var fill = new SolidBrush(Color.FromArgb(245, 238, 222));
+            using var pen = new Pen(Color.FromArgb(60, 48, 60), 2f);
+            g.FillEllipse(fill, body);
+            g.DrawEllipse(pen, body);
+
+            using var spot = new SolidBrush(Color.FromArgb(126, 196, 184));
+            g.FillEllipse(spot, 11, 11, 5, 5);
+            g.FillEllipse(spot, 17, 18, 6, 6);
+        }
+
+        handle = bitmap.GetHicon();
+        // FromHandle sahipliği almaz; handle'ı biz tutup Dispose'ta DestroyIcon ile bırakıyoruz.
+        return Icon.FromHandle(handle);
+    }
+
+    public void Dispose()
+    {
+        _icon.Visible = false;
+        _icon.Dispose();
+
+        if (_iconHandle != IntPtr.Zero)
+        {
+            DestroyIcon(_iconHandle);
+            _iconHandle = IntPtr.Zero;
+        }
+    }
+}

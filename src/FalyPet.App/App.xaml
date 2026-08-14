@@ -1,0 +1,11 @@
+<Application x:Class="FalyPet.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <!--
+        StartupUri yok: pencere OnStartup içinde elle kuruluyor, çünkü önce kaydın
+        yüklenmesi gerekiyor. ShutdownMode=OnExplicitShutdown şart — pet gizlendiğinde
+        açık pencere kalmaz ve varsayılan davranış uygulamayı kapatırdı.
+    -->
+    <Application.Resources />
+</Application>

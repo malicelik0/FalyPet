@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\FalyPet.Core\FalyPet.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- Bilerek kapalı: UseWindowsForms açıkken örtük using'ler System.Drawing'i de getirir
+         ve System.Windows.Point ile System.Drawing.Point çakışır. Her dosya kendi
+         using'lerini açıkça yazıyor. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+
+    <!-- Tepsi ikonu (NotifyIcon) ve Faz 1'de ekran numaralandırma (Screen) için.
+         .NET ile birlikte gelir, ek NuGet paketi yok. -->
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <!-- Kurulan exe'nin adı. Proje adı FalyPet.App ama kullanıcı "FalyPet.exe" görmeli. -->
+    <AssemblyName>FalyPet</AssemblyName>
+    <RootNamespace>FalyPet.App</RootNamespace>
+    <ApplicationIcon></ApplicationIcon>
+  </PropertyGroup>
+
+</Project>
