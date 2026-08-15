@@ -49,6 +49,17 @@ dotnet publish (Join-Path $kok 'src\FalyPet.App\FalyPet.App.csproj') `
     -o $yayinDizini --nologo
 if ($LASTEXITCODE -ne 0) { throw "Yayinlama basarisiz." }
 
+Write-Host "==> Duman testi (butun pencereler aciliyor)" -ForegroundColor Cyan
+# Yayinlanacak ciktinin UZERINDE calisiyor, gelistirme derlemesinde degil:
+# gonderilen seyin ta kendisi sinaniyor.
+$rapor = Join-Path $env:TEMP "falypet-selftest-$Surum.txt"
+$st = Start-Process (Join-Path $yayinDizini 'FalyPet.exe') -ArgumentList '--self-test', $rapor -PassThru -Wait
+if ($st.ExitCode -ne 0) {
+    if (Test-Path $rapor) { Get-Content $rapor | Write-Host }
+    throw "Duman testi basarisiz. Paket uretilmedi."
+}
+Get-Content $rapor | Select-Object -First 2 | Write-Host
+
 Write-Host "==> Velopack paketi" -ForegroundColor Cyan
 vpk pack `
     --packId FalyPet `

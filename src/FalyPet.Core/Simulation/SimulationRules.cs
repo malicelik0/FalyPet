@@ -133,6 +133,15 @@ public static class SimulationRules
     /// </summary>
     public const int CoinsPerCarePoint = 2;
 
+    /// <summary>
+    /// Mini oyunlardan bir günde kazanılabilecek en fazla coin.
+    ///
+    /// Tavan olmasaydı oyun oynayan biri dakikalar içinde bütün dükkanı alırdı ve
+    /// "coin bakımın yan ürünüdür" ilkesi çökerdi. Dikkatli bir kullanıcı bakımdan
+    /// günde ~80 coin kazanıyor; oyun onun altında kalmalı, alternatifi değil takviyesi.
+    /// </summary>
+    public const int MaxGameCoinsPerDay = 60;
+
     // ------------------------------------------------------------------ büyüme
 
     /// <summary>Yumurtanın çatlaması için gereken okşama sayısı.</summary>

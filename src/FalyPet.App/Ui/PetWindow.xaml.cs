@@ -411,6 +411,7 @@ public partial class PetWindow : Window
 
         menu.Items.Add(new Separator());
         AddItem(menu, "Durum", ShowStatus);
+        AddItem(menu, "Yakala oyunu", OpenGame);
         AddItem(menu, "Dükkan", OpenShop);
 
         menu.Items.Add(new Separator());
@@ -441,6 +442,17 @@ public partial class PetWindow : Window
         _washItem.IsEnabled = awake;
         _sleepItem.IsEnabled = alive;
         _sleepItem.Header = _sim.IsSleeping ? "Uyandır" : "Uyut";
+    }
+
+    private CatchGameWindow? _game;
+
+    private void OpenGame()
+    {
+        if (_game is { IsVisible: true }) { _game.Activate(); return; }
+
+        _game = new CatchGameWindow(_sim, _store, _save, _species, _sprites);
+        _game.Closed += (_, _) => _game = null;
+        _game.Show();
     }
 
     private ShopWindow? _shop;

@@ -27,6 +27,38 @@ public sealed class PetSimulation(PetSave state)
         return true;
     }
 
+    /// <summary>
+    /// Mini oyun ödülü. Günlük tavan uygulanır ve GERÇEKTEN verilen miktar döner —
+    /// çağıran taraf kullanıcıya doğru sayıyı gösterebilsin diye. Tavan olmasaydı
+    /// oyun, bakımın yerine geçen bir coin kaynağı olurdu.
+    /// </summary>
+    public int AwardGameCoins(int amount, DateTimeOffset now)
+    {
+        if (amount <= 0) return 0;
+
+        var today = now.UtcDateTime.Date;
+        if (_state.GameCoinsDateUtc?.UtcDateTime.Date != today)
+        {
+            _state.GameCoinsDateUtc = new DateTimeOffset(today, TimeSpan.Zero);
+            _state.GameCoinsToday = 0;
+        }
+
+        var remaining = SimulationRules.MaxGameCoinsPerDay - _state.GameCoinsToday;
+        var granted = Math.Min(amount, Math.Max(0, remaining));
+
+        _state.GameCoinsToday += granted;
+        _state.Coins += granted;
+        return granted;
+    }
+
+    /// <summary>Bugün mini oyunlardan daha ne kadar kazanılabilir.</summary>
+    public int RemainingGameCoinsToday(DateTimeOffset now)
+    {
+        var today = now.UtcDateTime.Date;
+        if (_state.GameCoinsDateUtc?.UtcDateTime.Date != today) return SimulationRules.MaxGameCoinsPerDay;
+        return Math.Max(0, SimulationRules.MaxGameCoinsPerDay - _state.GameCoinsToday);
+    }
+
     /// <summary>Yeni bir pet yaratır. Yumurta aşamasından başlar.</summary>
     public static PetSave CreateNew(string speciesId, string name, DateTimeOffset now) => new()
     {

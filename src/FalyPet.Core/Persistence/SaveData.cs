@@ -84,6 +84,13 @@ public sealed class PetSave
 
     public int Coins { get; set; }
 
+    /// <summary>Mini oyunlardan bugün kazanılan coin ve hangi güne ait olduğu (UTC).</summary>
+    public int GameCoinsToday { get; set; }
+    public DateTimeOffset? GameCoinsDateUtc { get; set; }
+
+    /// <summary>Mini oyundaki en yüksek skor — kullanıcının kendisiyle yarışması için.</summary>
+    public int CatchHighScore { get; set; }
+
     /// <summary>Satın alınmış eşya kimlikleri.</summary>
     public List<string> OwnedItems { get; set; } = [];
 

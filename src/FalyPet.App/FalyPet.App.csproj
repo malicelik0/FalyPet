@@ -31,6 +31,14 @@
          farklı ölçekli ikinci monitörde Windows pencereyi bitmap olarak esnetir
          ve 32x32 sprite bulanıklaşır. Ayrıntı: app.manifest -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- WFO0003: WinForms analizörü DPI'ın manifest yerine ApplicationHighDpiMode
+         ile ayarlanmasını istiyor. Bu bir WPF uygulaması; WinForms yalnızca tepsi
+         ikonu ve ekran numaralandırma için referanslı ve ApplicationConfiguration.
+         Initialize() hiç çağrılmıyor. WPF'in DPI yolu manifesttir ve çalışan
+         pencereye GetWindowDpiAwarenessContext ile sorularak PerMonitorV2
+         olduğu doğrulandı. Uyarı bu projede yanlış pozitif. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
   </PropertyGroup>
 
 </Project>

@@ -406,6 +406,41 @@ public sealed class PetSimulationTests
         Assert.Equal(0, sim.Coins);
     }
 
+    [Fact]
+    public void Mini_oyun_coinleri_gunluk_tavana_takilir()
+    {
+        var sim = NewBaby(out var now);
+
+        // Tavanın üstünde bir ödül iste; yalnızca tavan kadarı verilmeli.
+        var ilk = sim.AwardGameCoins(SimulationRules.MaxGameCoinsPerDay + 100, now);
+        Assert.Equal(SimulationRules.MaxGameCoinsPerDay, ilk);
+
+        // Aynı gün ikinci oyun hiç coin getirmez.
+        Assert.Equal(0, sim.AwardGameCoins(50, now));
+        Assert.Equal(0, sim.RemainingGameCoinsToday(now));
+
+        // Ertesi gün sayaç sıfırlanır.
+        var yarin = now.AddDays(1);
+        Assert.Equal(SimulationRules.MaxGameCoinsPerDay, sim.RemainingGameCoinsToday(yarin));
+        Assert.Equal(30, sim.AwardGameCoins(30, yarin));
+    }
+
+    [Fact]
+    public void Mini_oyun_coinleri_bakim_coinlerinden_ayri_sayilir()
+    {
+        var sim = NewBaby(out var now);
+
+        sim.AwardGameCoins(SimulationRules.MaxGameCoinsPerDay, now);
+        var oyundanSonra = sim.Coins;
+
+        // Oyun tavanı dolmuş olsa bile bakım coin vermeye devam etmeli:
+        // tavan oyunu sınırlar, ilgilenmeyi değil.
+        Ilerlet(sim, ref now, TimeSpan.FromHours(7));
+        sim.Apply(CareAction.Feed, now);
+
+        Assert.True(sim.Coins > oyundanSonra);
+    }
+
     // ------------------------------------------------------------------ büyüme
 
     [Fact]

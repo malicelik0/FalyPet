@@ -46,6 +46,15 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        // Duman testi: bütün pencereleri kurup kapatır, hata varsa raporlar.
+        // Birim testleri Core'u kapsıyor ama WPF pencerelerini kapsamıyordu.
+        if (e.Args.Length >= 2 && e.Args[0] == "--self-test")
+        {
+            var code = Diagnostics.SelfTest.Run(e.Args[1]);
+            Shutdown(code);
+            return;
+        }
+
         _instanceMutex = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out var isFirstInstance);
         if (!isFirstInstance)
         {

@@ -1,69 +1,82 @@
 # NEREDE KALDIK
 
 > Her oturuma bu dosyayı okuyarak başla.
-> Plan: [01-PLAN.md](01-PLAN.md) · Yayın: [02-YAYIN.md](02-YAYIN.md)
-> Son güncelleme: **15 Ağustos 2026, 01:15**
+> Plan: [01-PLAN.md](01-PLAN.md) · Yayın: [02-YAYIN.md](02-YAYIN.md) · Sanat: [03-SANAT.md](03-SANAT.md)
+> Son güncelleme: **15 Ağustos 2026, 05:45**
 
-## Durum: Faz 0-5 ve 9'un kodu bitti · Faz 6-8 yapılmadı
+## Durum: bütün fazlar (0-9) bitti · uygulama kurulabilir ve kendini güncelliyor
 
-Uygulama **oynanabilir**: tür seçiyorsun, yumurta çatlıyor, pet geziniyor,
-besleniyor, büyüyor, coin kazanıp dükkandan kostüm alıyor.
+Tek eksik: **gerçek sanat** (sprite'lar prosedürel) ve **GitHub'a ilk sürümü
+yayınlamak** — ikisi de senin kararını bekliyor, bkz. en alt.
 
-## Çalışır durumda olanlar
+## Doğrulanmış olanlar
 
-| Alan | Durum |
+| Alan | Nasıl doğrulandı |
 |---|---|
-| Saydam always-on-top pencere, alfa tıkla-geç, sürükleme | ✅ ölçülerek doğrulandı |
-| Tepsi ikonu, tek örnek kilidi, tam ekran oyun algılama | ✅ |
-| Çok monitörlü güvenli konumlandırma | ✅ 5 senaryo test edildi |
-| İhtiyaç motoru, 8 saat tavanlı offline telafi | ✅ 39 test |
-| Bakım puanıyla büyüme (yumurta→bebek→çocuk→genç→yetişkin) | ✅ dikkatli kullanıcı 12 günde yetişkin |
-| Hasta / küskün kademeleri, kilitlenme yok | ✅ regresyon testli |
-| 10 tür prosedürel pixel-art sprite, 5 aşama, 9 durum | ✅ 110/110 otomatik denetim |
-| Gezinme, kenara oturma, 8 fps animasyon | ✅ ölçüldü (~37.5 DIP/s) |
-| Onboarding (tür seçimi + isim) | ✅ |
-| Sağ tık menüsü, bakım eylemleri, konuşma balonu, durum | ✅ |
-| Coin ekonomisi + kostüm dükkanı (5 aksesuar) | ✅ kod bitti, elle denenmedi |
-| Velopack otomatik güncelleme + Windows ile başlat | ⚠️ kod bitti, **paketleme doğrulanmadı** |
+| Saydam pencere, alfa tıkla-geç, sürükleme | Win32'den pencere stilleri okunarak |
+| Çok monitörlü konumlandırma | 5 senaryo (kayıtlı / uzak / ölü bölge / 2. monitör / kayıt yok) |
+| **PerMonitorV2 DPI** | `GetWindowDpiAwarenessContext` ile canlı pencereye sorularak |
+| İhtiyaç motoru, offline telafi, büyüme | 41 birim testi |
+| Denge: dikkatli kullanıcı → yetişkin | ölçüldü: **12 gün** |
+| 10 tür × 5 aşama × 9 durum sprite | 110/110 otomatik denetim + kontakt sayfası |
+| Gezinme hızı | ölçüldü: ~37.5 DIP/s (spec 38) |
+| Bütün pencereler açılıyor | `--self-test`: 6/6 geçti, 450 sprite bileşimi |
+| **Kurulum** | Setup.exe çalıştırıldı, `%LocalAppData%\FalyPet\current\` |
+| **Kayıt kurulumdan sağ çıkıyor** | MD5 kurulum öncesi/sonrası aynı |
+| **Otomatik güncelleme** | 1.0.1 → 1.0.2 uçtan uca: delta indi, çıkışta kuruldu |
+| **Kayıt güncellemeden sağ çıkıyor** | pet adı, coin, kostüm korundu |
+| Bellek | **44.9 MB** private working set (hedef <80) |
+| Boşta CPU | **tek çekirdeğin %0.78'i** (hedef <%1) |
 
-## HEMEN SIRADAKİ İŞ — paketlemeyi doğrula
+### Paket boyutları
+| Dosya | Boyut |
+|---|---|
+| `FalyPet-win-Setup.exe` | 77.9 MB |
+| `FalyPet-1.0.2-full.nupkg` | 73.7 MB |
+| **`FalyPet-1.0.2-delta.nupkg`** | **0.15 MB** ← kullanıcı güncellemede bunu indiriyor |
 
-`build\paket-yap.ps1` uçtan uca **hiç çalıştırılmadı**. Self-contained yayın
-sürerken süreçler durduruldu, `Releases/` çıktısı üretilmedi.
+Self-contained yayınlandığı için kullanıcının .NET kurması gerekmiyor; bedeli
+ilk indirmenin ~78 MB olması. Güncellemeler delta olduğu için 0.2 MB.
 
+## Doğrulanmamış tek halka
+
+**GitHub üzerinden gerçek güncelleme.** Akışın tamamı yerel klasör kaynağıyla
+(`FALYPET_UPDATE_SOURCE`) test edildi ve çalışıyor; sınanmayan tek şey GitHub
+transport'u. Onu doğrulamak gerçek bir public release yayınlamayı gerektiriyor —
+bu dışa dönük bir işlem olduğu için **senin onayın olmadan yapılmadı.**
+
+## Senin kararını bekleyen iki şey
+
+### 1. İlk sürümü yayınla
 ```powershell
 cd C:\Users\QuarteX\Documents\FalyPet
 .\build\paket-yap.ps1 -Surum 1.0.0
+gh release create v1.0.0 Releases\* --title "FalyPet 1.0.0" --notes "İlk sürüm"
+```
+`malicelik0/FalyPet` reposunun **public** olması gerekiyor (istemciye token
+gömmemek için). Ayrıntı: [02-YAYIN.md](02-YAYIN.md)
+
+### 2. Gerçek sanat
+Sprite'lar şu an prosedürel. `Assets\sprites\` altına dosya koydukça gerçek sanat
+devreye giriyor — kod değişikliği yok, tür tür eklenebiliyor.
+Şartname: [03-SANAT.md](03-SANAT.md). En yüksek getirili ilk adım: 10 türün
+`adult_idle` ve `baby_idle` sprite'ları (~60 kare).
+
+## Komutlar
+
+```powershell
+dotnet run --project src/FalyPet.App                              # çalıştır
+dotnet test FalyPet.sln                                           # 41 test
+dotnet run --project src/FalyPet.App -- --dump-sprite C:\temp\s   # sprite denetimi
+dotnet run --project src/FalyPet.App -- --self-test C:\temp\r.txt # pencere duman testi
+.\build\paket-yap.ps1 -Surum 1.0.3                                # sürüm paketi
 ```
 
-**Önemli:** bu çalışırken başka `dotnet build` çalıştırma — `obj/` üzerinde
-çakışıyor, ilk denemede takılmasının sebebi buydu.
+Paketleme betiği önce testleri, sonra duman testini çalıştırıyor; ikisi de
+geçmeden paket üretmiyor.
 
-Doğrulanacaklar:
-1. `Releases\FalyPet-win-Setup.exe` üretildi mi, boyutu ne?
-2. Setup çalıştırılınca `%LocalAppData%\FalyPet\current\` altına kuruluyor mu?
-3. Kurulu sürüm açılınca tepside sürüm numarası görünüyor mu (geliştirme değil)?
-4. `%APPDATA%\FalyPet\save.json` kurulumdan sonra da duruyor mu? (kritik)
-5. 1.0.1 paketleyip GitHub Release'e atınca kurulu sürüm kendini güncelliyor mu?
-
-## Yapılmayanlar
-
-- **Faz 6 — mini oyunlar**: hiç başlanmadı. Coin şu an sadece bakımdan geliyor.
-- **Faz 7 — cila**: ses efekti yok, ayarlar penceresi yok, kayıt yedekleme
-  arayüzü yok. "Windows ile başlat" var (tepsi menüsünde).
-- **Faz 8 — gerçek sanat**: sprite'lar prosedürel. Yerine gerçek sprite sheet
-  koymak için `SpriteCache.Get` içine dosyadan okuma eklenmeli; prosedürel
-  üretim yedek olarak kalmalı (bir türün sanatı eksikse oyun yine çalışsın).
-- **Per-monitor DPI (PerMonitorV2)**: uygulama sistem DPI'ına duyarlı. Bu
-  makinede iki monitör de %100 ölçekte olduğu için fark etmiyor; farklı
-  ölçekli monitörde pet kayar. `app.manifest` ile açılacak.
-
-## Bilinen sapma: RAM
-
-Plandaki hedef boşta **< 80 MB**. Ölçülen: **119.6 MB** (Debug derlemesi,
-pet + balon penceresi + sprite önbelleği). Release derlemesinde ölçüm
-yapılmadı. Faz 7'de ele alınacak; gerekirse sprite önbelleği aşamaya göre
-budanır (kullanıcı aynı anda tek aşamada).
+**Paketleme sürerken başka `dotnet` komutu çalıştırma.** Ayrıca gerekirse
+`$env:MSBUILDDISABLENODEREUSE = "1"` kullan.
 
 ## Alınmış tasarım kararları (değiştirmeden önce 01-PLAN.md oku)
 
@@ -71,16 +84,8 @@ budanır (kullanıcı aynı anda tek aşamada).
 2. **Büyüme bakım EYLEMLERİNDEN** gelir, geçen süreden değil
 3. **Türü kullanıcı seçer**, 10 tür
 4. **Güncelleme uygulamayı yeniden başlatmaz** — çıkışta kurulur
-5. **Dükkan yalnızca kalıcı aksesuar satar**, tüketilebilir yiyecek yok
-
-## Komutlar
-
-```powershell
-dotnet run --project src/FalyPet.App          # çalıştır
-dotnet test FalyPet.sln                       # 39 test
-dotnet run --project src/FalyPet.App -- --dump-sprite C:\temp\s   # sprite denetimi
-.\build\paket-yap.ps1 -Surum 1.0.0            # sürüm paketi
-```
+5. **Dükkan yalnızca kalıcı aksesuar satar**
+6. **Mini oyunda ceza yok**, coin'i günlük tavanlı (bakımın alternatifi değil takviyesi)
 
 ## Yol boyunca bulunup düzeltilen hatalar
 
@@ -88,3 +93,6 @@ dotnet run --project src/FalyPet.App -- --dump-sprite C:\temp\s   # sprite denet
 2. Ekran dışı kurtarma pet'i monitörsüz ölü bölgeye koyuyordu (2560×1440 + 1920×1080'de gerçek)
 3. Küskünlük kilitlenmesi — çıkış mutluluk istiyordu ama küskünken mutluluğu yükseltecek eylem yoktu
 4. 110 sprite'ın 48'i kareyi taşıyordu (kulak yükseklikleri, zemin kaydırma, blob dokunaçları)
+5. Tepside auto-start tikini programatik tazelemek kayıt defterine gereksiz yazma tetikliyordu
+6. Paketlemenin ilk iki denemesi takıldı: bozuk NuGet önbellek girdisi (0 baytlık geçici
+   dosya, gece süreç öldürüldüğünde kalmış) + 70 MB runtime paketinin indirme zaman aşımı
