@@ -20,15 +20,16 @@ yayınlamak** — ikisi de senin kararını bekliyor, bkz. en alt.
 | **İhtiyaç bildirimleri** | balon ölçüldü: karşılama 0.8-5.7 sn, uyarı 50.2-56.4 sn |
 | Bildirim sıklığı makul | test: 24 saat ilgilenilmeyen pet **2-10 bildirim** |
 | Denge: dikkatli kullanıcı → yetişkin | ölçüldü: **12 gün** |
-| 10 tür × 5 aşama × 9 durum sprite | 110/110 otomatik denetim + kontakt sayfası |
+| 10 tür × 5 aşama × 9 durum sprite | 130/130 otomatik denetim + kontakt sayfası |
+| **Pet imlece bakıyor** | kontakt sayfasında `bakis-sol` / `bakis-sag` sütunları |
 | Gezinme hızı | ölçüldü: ~37.5 DIP/s (spec 38) |
 | Bütün pencereler açılıyor | `--self-test`: 6/6 geçti, 450 sprite bileşimi |
 | **Kurulum** | Setup.exe çalıştırıldı, `%LocalAppData%\FalyPet\current\` |
 | **Kayıt kurulumdan sağ çıkıyor** | MD5 kurulum öncesi/sonrası aynı |
 | **Otomatik güncelleme** | 1.0.1 → 1.0.2 uçtan uca: delta indi, çıkışta kuruldu |
 | **Kayıt güncellemeden sağ çıkıyor** | pet adı, coin, kostüm korundu |
-| Bellek | **44.9 MB** private working set (hedef <80) |
-| Boşta CPU | **tek çekirdeğin %0.78'i** (hedef <%1) |
+| Bellek | **41.5 MB** private working set (hedef <80) |
+| Boşta CPU | **tek çekirdeğin %0.86'sı** (hedef <%1) |
 
 ### Paket boyutları
 | Dosya | Boyut |
@@ -50,13 +51,20 @@ bu dışa dönük bir işlem olduğu için **senin onayın olmadan yapılmadı.*
 ## Senin kararını bekleyen iki şey
 
 ### 1. İlk sürümü yayınla
+`gh` CLI kurulu (v2.97.0) ama **giriş yapılmamış**. Kimlik doğrulaması interaktif
+olduğu için bu adım kullanıcıya ait:
+
 ```powershell
+gh auth login
 cd C:\Users\QuarteX\Documents\FalyPet
-.\build\paket-yap.ps1 -Surum 1.0.0
-gh release create v1.0.0 Releases\* --title "FalyPet 1.0.0" --notes "İlk sürüm"
+gh repo create malicelik0/FalyPet --public --source . --remote origin --push
+gh release create v1.0.0 Releases\* --title "FalyPet 1.0.0" --notes "Ilk surum"
 ```
-`malicelik0/FalyPet` reposunun **public** olması gerekiyor (istemciye token
-gömmemek için). Ayrıntı: [02-YAYIN.md](02-YAYIN.md)
+
+`Releases\` klasöründeki **bütün dosyaları** yükle — `releases.win.json` eksik
+kalırsa güncelleme sessizce hiç çalışmaz.
+
+Repo **public** olmalı (istemciye token gömmemek için). Ayrıntı: [02-YAYIN.md](02-YAYIN.md)
 
 ### 2. Gerçek sanat
 Sprite'lar şu an prosedürel. `Assets\sprites\` altına dosya koydukça gerçek sanat
