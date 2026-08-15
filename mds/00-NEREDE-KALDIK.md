@@ -2,7 +2,7 @@
 
 > Her oturuma bu dosyayı okuyarak başla.
 > Plan: [01-PLAN.md](01-PLAN.md) · Yayın: [02-YAYIN.md](02-YAYIN.md) · Sanat: [03-SANAT.md](03-SANAT.md)
-> Son güncelleme: **15 Ağustos 2026, 05:45**
+> Son güncelleme: **15 Ağustos 2026, 09:15**
 
 ## Durum: bütün fazlar (0-9) bitti · uygulama kurulabilir ve kendini güncelliyor
 
@@ -16,7 +16,9 @@ yayınlamak** — ikisi de senin kararını bekliyor, bkz. en alt.
 | Saydam pencere, alfa tıkla-geç, sürükleme | Win32'den pencere stilleri okunarak |
 | Çok monitörlü konumlandırma | 5 senaryo (kayıtlı / uzak / ölü bölge / 2. monitör / kayıt yok) |
 | **PerMonitorV2 DPI** | `GetWindowDpiAwarenessContext` ile canlı pencereye sorularak |
-| İhtiyaç motoru, offline telafi, büyüme | 41 birim testi |
+| İhtiyaç motoru, offline telafi, büyüme | 51 birim testi |
+| **İhtiyaç bildirimleri** | balon ölçüldü: karşılama 0.8-5.7 sn, uyarı 50.2-56.4 sn |
+| Bildirim sıklığı makul | test: 24 saat ilgilenilmeyen pet **2-10 bildirim** |
 | Denge: dikkatli kullanıcı → yetişkin | ölçüldü: **12 gün** |
 | 10 tür × 5 aşama × 9 durum sprite | 110/110 otomatik denetim + kontakt sayfası |
 | Gezinme hızı | ölçüldü: ~37.5 DIP/s (spec 38) |
@@ -66,7 +68,7 @@ devreye giriyor — kod değişikliği yok, tür tür eklenebiliyor.
 
 ```powershell
 dotnet run --project src/FalyPet.App                              # çalıştır
-dotnet test FalyPet.sln                                           # 41 test
+dotnet test FalyPet.sln                                           # 51 test
 dotnet run --project src/FalyPet.App -- --dump-sprite C:\temp\s   # sprite denetimi
 dotnet run --project src/FalyPet.App -- --self-test C:\temp\r.txt # pencere duman testi
 .\build\paket-yap.ps1 -Surum 1.0.3                                # sürüm paketi
@@ -86,6 +88,9 @@ geçmeden paket üretmiyor.
 4. **Güncelleme uygulamayı yeniden başlatmaz** — çıkışta kurulur
 5. **Dükkan yalnızca kalıcı aksesuar satar**
 6. **Mini oyunda ceza yok**, coin'i günlük tavanlı (bakımın alternatifi değil takviyesi)
+7. **Bildirimde üç fren var** — her ihtiyaç/seviye bir kez, hak ancak ihtiyaç
+   gerçekten düzelince yenilenir, aralarında 10 dakika bekleme. Hiç uyarmazsa pet
+   unutulur ve büyüme durur; fazla uyarırsa 7/24 açık uygulama silinir.
 
 ## Yol boyunca bulunup düzeltilen hatalar
 
