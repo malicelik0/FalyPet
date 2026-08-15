@@ -29,11 +29,8 @@ public partial class App : System.Windows.Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        // EN BAŞTA olmak zorunda. Velopack kurulum, güncelleme ve kaldırma
-        // adımlarında uygulamayı özel argümanlarla çalıştırır ve hızlıca çıkmasını
-        // bekler; UI kurulmadan, hatta tek örnek kilidi alınmadan önce ele geçmeli.
-        VelopackApp.Build().SetArgs(e.Args).Run();
-
+        // VelopackApp.Build().Run() burada DEĞİL, Program.Main içinde — Velopack'in
+        // kurulum/güncelleme adımlarını WPF hiç başlamadan yakalaması gerekiyor.
         base.OnStartup(e);
 
         // Teşhis modu: pencere açmadan sprite'ları diske döküp çıkar.

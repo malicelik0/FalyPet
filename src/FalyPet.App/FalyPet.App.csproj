@@ -25,6 +25,10 @@
     <!-- Kurulan exe'nin adı. Proje adı FalyPet.App ama kullanıcı "FalyPet.exe" görmeli. -->
     <AssemblyName>FalyPet</AssemblyName>
     <RootNamespace>FalyPet.App</RootNamespace>
+
+    <!-- WPF'in App.xaml'den urettigi Main yerine kendi giris noktamiz kullaniliyor:
+         Velopack ilk satirda calismak zorunda. Ayrinti: Program.cs -->
+    <StartupObject>FalyPet.App.Program</StartupObject>
     <ApplicationIcon></ApplicationIcon>
 
     <!-- PerMonitorV2 DPI. Pixel-art bir uygulama için pazarlık dışı: bu olmadan
