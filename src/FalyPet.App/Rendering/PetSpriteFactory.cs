@@ -186,7 +186,11 @@ internal static class PetSpriteFactory
         var headCx = anchor.X;
         var headCy = anchor.Y;
 
-        DrawTail(c, s, CenterX + m.BodyRx * 0.85, bodyCy, anim, frame);
+        // Küskünken kuyruk ÖNE geçiyor: pet sırtını dönmüş demektir. Yalnızca yüzü
+        // silmek yetmiyordu — o hâlde sprite idle'dan ayırt edilemiyor ve kullanıcı
+        // pet'in küstüğünü anlamıyordu.
+        var tailSide = anim == PetAnimation.Sulk ? -1 : 1;
+        DrawTail(c, s, CenterX + tailSide * m.BodyRx * 0.85, bodyCy, anim, frame);
         DrawFeet(c, s, m, Ground, anim, frame);
 
         c.Ellipse(CenterX, bodyCy, m.BodyRx, m.BodyRy, s.BaseColor);
@@ -374,6 +378,11 @@ internal static class PetSpriteFactory
         var eyeY = hy - r * 0.10;
         var ink = SpriteCanvas.Darken(outline, 0.35);
 
+        // Bakış yönü: yürürken göz bebeği ileri kayar. Tek piksellik bir detay ama
+        // pet'in "bir yere gittiğini" hissettiren şey bu — sabit bakan gözler
+        // yürüyen bir karakteri cansız gösteriyor.
+        var gaze = anim == PetAnimation.Walk ? 1 : 0;
+
         switch (anim)
         {
             case PetAnimation.Sleep:
@@ -395,8 +404,8 @@ internal static class PetSpriteFactory
                 return;
 
             case PetAnimation.Eat or PetAnimation.Drink:
-                DrawOpenEye(c, hx - eyeDx, eyeY, ink, s);
-                DrawOpenEye(c, hx + eyeDx, eyeY, ink, s);
+                DrawOpenEye(c, hx - eyeDx, eyeY, ink, gaze);
+                DrawOpenEye(c, hx + eyeDx, eyeY, ink, gaze);
                 DrawMouth(c, hx, hy + r * 0.45, open: frame != 1, ink);
                 return;
 
@@ -409,17 +418,20 @@ internal static class PetSpriteFactory
                 }
                 else
                 {
-                    DrawOpenEye(c, hx - eyeDx, eyeY, ink, s);
-                    DrawOpenEye(c, hx + eyeDx, eyeY, ink, s);
+                    DrawOpenEye(c, hx - eyeDx, eyeY, ink, gaze);
+                    DrawOpenEye(c, hx + eyeDx, eyeY, ink, gaze);
                 }
                 DrawMouth(c, hx, hy + r * 0.45, open: false, ink);
                 return;
         }
     }
 
-    private static void DrawOpenEye(SpriteCanvas c, double x, double y, uint ink, SpeciesDefinition s)
+    /// <summary><paramref name="gaze"/> göz bebeğinin kayacağı yön (-1 sol, 0 düz, 1 sağ).</summary>
+    private static void DrawOpenEye(SpriteCanvas c, double x, double y, uint ink, int gaze)
     {
-        c.Ellipse(x, y, 1.4, 1.7, ink);
+        // Göz akı, sonra üstüne bebek: bakış yönü ancak ikisi ayrıyken görünür.
+        c.Ellipse(x, y, 1.6, 1.9, 0xFFFFFF);
+        c.Ellipse(x + gaze * 0.8, y, 1.1, 1.5, ink);
         c.Plot((int)(x - 0.5), (int)(y - 1), 0xFFFFFF); // parlama noktası
     }
 
