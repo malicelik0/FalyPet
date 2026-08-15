@@ -26,6 +26,11 @@
     <AssemblyName>FalyPet</AssemblyName>
     <RootNamespace>FalyPet.App</RootNamespace>
     <ApplicationIcon></ApplicationIcon>
+
+    <!-- PerMonitorV2 DPI. Pixel-art bir uygulama için pazarlık dışı: bu olmadan
+         farklı ölçekli ikinci monitörde Windows pencereyi bitmap olarak esnetir
+         ve 32x32 sprite bulanıklaşır. Ayrıntı: app.manifest -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
 </Project>

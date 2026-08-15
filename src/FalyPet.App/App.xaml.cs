@@ -72,16 +72,21 @@ public partial class App : System.Windows.Application
         _petWindow = new PetWindow(_store, _save, sprites);
 
         _tray = new TrayIconService();
+        // Bu lambdalar _petWindow ALANINI okuyor, yerel bir kopyayı değil.
+        // Önemli: "Pet'i sıfırla" pencereyi yok edip yenisini kuruyor; null geçidi
+        // o kısa aralıkta çökmeyi engelliyor.
         _tray.ToggleVisibilityRequested += (_, _) =>
         {
+            if (_petWindow is null) return;
             _petWindow.ToggleUserVisibility();
-            _tray.SetPetVisible(_petWindow.IsPetVisible);
+            _tray?.SetPetVisible(_petWindow.IsPetVisible);
         };
         _tray.ExitRequested += (_, _) => Shutdown();
         _tray.CheckUpdatesRequested += (_, _) => _ = CheckUpdatesAsync(announceWhenUpToDate: true);
+        _tray.SettingsRequested += (_, _) => OpenSettings(sprites);
 
         _fullscreen = new FullscreenDetector();
-        _fullscreen.ShouldHideChanged += (_, hide) => _petWindow.SetHiddenByFullscreen(hide);
+        _fullscreen.ShouldHideChanged += (_, hide) => _petWindow?.SetHiddenByFullscreen(hide);
 
         _petWindow.Show();
         _tray.SetPetVisible(_petWindow.IsPetVisible);
@@ -97,6 +102,40 @@ public partial class App : System.Windows.Application
         _updateTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromHours(6) };
         _updateTimer.Tick += (_, _) => _ = CheckUpdatesAsync(announceWhenUpToDate: false);
         _updateTimer.Start();
+    }
+
+    private SettingsWindow? _settings;
+
+    private void OpenSettings(Rendering.SpriteCache sprites)
+    {
+        if (_settings is { IsVisible: true }) { _settings.Activate(); return; }
+
+        _settings = new SettingsWindow(_store!, _save!, sprites, _updates?.CurrentVersion ?? "geliştirme");
+        _settings.PetResetRequested += (_, _) => ResetPet(sprites);
+        _settings.Closed += (_, _) => { _settings = null; _tray?.RefreshAutoStartState(); };
+        _settings.Show();
+    }
+
+    /// <summary>
+    /// Pet'i siler ve tür seçiminden yeniden başlatır.
+    /// Pencere yeniden kuruluyor çünkü <see cref="PetWindow"/> içindeki simülasyon
+    /// eski PetSave nesnesine bağlı; sadece kaydı değiştirmek ikisini ayrıştırırdı.
+    /// </summary>
+    private void ResetPet(Rendering.SpriteCache sprites)
+    {
+        _petWindow?.SaveOnExit();
+        _petWindow?.Close();
+        _petWindow = null;
+
+        _save!.Pet = null;
+        _save.Window.Hidden = false;
+        _store!.Save(_save);
+
+        if (!RunOnboarding(sprites)) { Shutdown(); return; }
+
+        _petWindow = new PetWindow(_store, _save, sprites);
+        _petWindow.Show();
+        _tray?.SetPetVisible(_petWindow.IsPetVisible);
     }
 
     private async Task CheckUpdatesAsync(bool announceWhenUpToDate)

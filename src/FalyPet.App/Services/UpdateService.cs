@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Velopack;
 using Velopack.Sources;
@@ -25,11 +26,25 @@ internal sealed class UpdateService
 
     private readonly UpdateManager? _manager;
 
+    /// <summary>
+    /// Test için güncelleme kaynağını yerel bir klasöre çevirir.
+    ///
+    /// Bu olmadan güncelleme akışını doğrulamanın tek yolu GitHub'a gerçek bir
+    /// sürüm yayınlamak olurdu — yani mekanizmayı test etmek için kullanıcılara
+    /// yayın yapmak gerekirdi. Bu değişkenle tüm akış (denetle → indir → çıkışta
+    /// kur) yayın yapmadan, yerelde uçtan uca sınanabiliyor.
+    /// </summary>
+    public const string LocalSourceVariable = "FALYPET_UPDATE_SOURCE";
+
     public UpdateService()
     {
         try
         {
-            _manager = new UpdateManager(new GithubSource(ReleasesRepository, null, false));
+            var localSource = Environment.GetEnvironmentVariable(LocalSourceVariable);
+
+            _manager = !string.IsNullOrWhiteSpace(localSource) && Directory.Exists(localSource)
+                ? new UpdateManager(localSource)
+                : new UpdateManager(new GithubSource(ReleasesRepository, null, false));
         }
         catch (Exception)
         {

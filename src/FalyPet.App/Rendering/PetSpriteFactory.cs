@@ -36,14 +36,68 @@ internal static class PetSpriteFactory
         var outline = SpriteCanvas.OutlineFor(species.BaseColor);
 
         var bob = BobOffset(anim, frame);
+        var anchor = GetHeadAnchor(species, stage, anim, frame, accessory);
 
         if (species.Body == BodyShape.Blob)
-            DrawBlob(canvas, species, m, bob, anim, frame, outline, accessory);
+            DrawBlob(canvas, species, m, bob, anim, frame, outline, accessory, anchor);
         else
-            DrawCreature(canvas, species, m, bob, anim, frame, outline, accessory);
+            DrawCreature(canvas, species, m, bob, anim, frame, outline, accessory, anchor);
 
         return canvas.ToBitmap();
     }
+
+    /// <summary>Aksesuarın oturacağı yer: kafa merkezi ve yarıçapı.</summary>
+    internal readonly record struct HeadAnchor(double X, double Y, double R);
+
+    /// <summary>
+    /// Kafa çapasını hesaplar. Hem prosedürel çizim hem de diskten yüklenen gerçek
+    /// sprite'lar bunu kullanıyor — böylece bir kullanıcı kostüm takınca aksesuar,
+    /// sanatın nereden geldiğine bakmaksızın aynı yere oturuyor.
+    ///
+    /// Gerçek sprite çizecek biri için şart budur: kafa merkezi bu fonksiyonun
+    /// döndürdüğü yerde olsun. Aşama ölçüleri <see cref="MetricsFor"/> içinde.
+    /// </summary>
+    internal static HeadAnchor GetHeadAnchor(SpeciesDefinition s, GrowthStage stage, PetAnimation anim,
+        int frame, AccessoryDefinition? accessory)
+    {
+        var m = MetricsFor(stage, s.Body);
+        var bob = BobOffset(anim, frame);
+
+        if (s.Body == BodyShape.Blob)
+        {
+            var ry = BlobRadiusY(m);
+            var cy = Ground - ry + bob;
+            var faceR = m.HeadR * 0.95;
+            // Blob'da aksesuar kütlenin tepesine oturur, yüzün hemen üstüne değil.
+            return new HeadAnchor(CenterX, Math.Max(cy - ry * 0.28, cy - ry + faceR * 0.55), faceR);
+        }
+
+        var bodyCy = Ground - m.BodyRy + bob;
+        var headCy = bodyCy - m.BodyRy - m.HeadR * 0.55 + bob * 0.4 + Slump(anim);
+
+        // Kafayı kulaklar VE aksesuar taşmayacak kadar aşağıda tut.
+        var topExtent = Math.Max(EarTopExtent(s.Ears), AccessoryTopExtent(accessory));
+        headCy = Math.Max(headCy, Ceiling + topExtent * m.HeadR);
+
+        return new HeadAnchor(CenterX + HeadLean(anim, frame), headCy, m.HeadR);
+    }
+
+    /// <summary>
+    /// Yalnızca aksesuarı çizer, şeffaf zemin üstüne. Diskten yüklenen gerçek
+    /// sprite'ların üstüne bindirmek için — gerçek sanat kostümleri içermek
+    /// zorunda kalmasın.
+    /// </summary>
+    internal static WriteableBitmap? RenderAccessoryOnly(AccessoryDefinition? accessory, HeadAnchor anchor)
+    {
+        if (accessory is null || accessory.Type == AccessoryType.None) return null;
+
+        var canvas = new SpriteCanvas();
+        DrawAccessory(canvas, accessory, anchor.X, anchor.Y, anchor.R);
+        return canvas.ToBitmap();
+    }
+
+    private static double BlobRadiusY(Metrics m) =>
+        Math.Min(m.BodyRy + m.HeadR * 0.75, (Ground - Ceiling) / 2.0);
 
     /// <summary>
     /// Aksesuarın kafa merkezinin ne kadar üstüne çıktığı (kafa yarıçapı katı).
@@ -123,16 +177,14 @@ internal static class PetSpriteFactory
     // ---------------------------------------------------------------- normal yaratık
 
     private static void DrawCreature(SpriteCanvas c, SpeciesDefinition s, Metrics m,
-        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory)
+        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor)
     {
         var bodyCy = Ground - m.BodyRy + bob;
-        var headCy = bodyCy - m.BodyRy - m.HeadR * 0.55 + bob * 0.4 + Slump(anim);
-        var headCx = CenterX + HeadLean(anim, frame);
 
-        // Kafayı kulaklar VE aksesuar taşmayacak kadar aşağıda tut. Kafa gövdeye
-        // biraz gömülür, bu görsel olarak sorun değil — taşan şapka ise sprite'ı bozuyor.
-        var topExtent = Math.Max(EarTopExtent(s.Ears), AccessoryTopExtent(accessory));
-        headCy = Math.Max(headCy, Ceiling + topExtent * m.HeadR);
+        // Kafa konumu GetHeadAnchor'dan geliyor, burada yeniden hesaplanmıyor:
+        // iki yerde hesaplansaydı biri değiştiğinde kostümler kaymaya başlardı.
+        var headCx = anchor.X;
+        var headCy = anchor.Y;
 
         DrawTail(c, s, CenterX + m.BodyRx * 0.85, bodyCy, anim, frame);
         DrawFeet(c, s, m, Ground, anim, frame);
@@ -148,12 +200,12 @@ internal static class PetSpriteFactory
     }
 
     private static void DrawBlob(SpriteCanvas c, SpeciesDefinition s, Metrics m,
-        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory)
+        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor)
     {
         // Jöle/hayalet/ahtapotta ayrı kafa yok: tek kütle, yüz üst kısmında.
         // Yükseklik tavana göre kısıtlanıyor, yoksa yetişkin blob kareyi taşıyor.
         var rx = m.BodyRx + 1.0;
-        var ry = Math.Min(m.BodyRy + m.HeadR * 0.75, (Ground - Ceiling) / 2.0);
+        var ry = BlobRadiusY(m);
         var cy = Ground - ry + bob;
 
         // Nefes alma: yatay genişleyip dikey basılma. Hacim korunuyormuş hissi verir.
@@ -167,12 +219,8 @@ internal static class PetSpriteFactory
         DrawMarkings(c, s, m, cy + ry * 0.35, CenterX, cy - ry * 0.30);
         c.Outline(outline);
 
-        var faceY = cy - ry * 0.28;
-        var faceR = m.HeadR * 0.95;
-        DrawFace(c, s, CenterX, faceY, faceR, anim, frame, outline);
-
-        // Blob'da aksesuar kütlenin tepesine oturur, yüzün hemen üstüne değil.
-        DrawAccessory(c, accessory, CenterX, Math.Max(faceY, cy - ry + faceR * 0.55), faceR);
+        DrawFace(c, s, CenterX, cy - ry * 0.28, m.HeadR * 0.95, anim, frame, outline);
+        DrawAccessory(c, accessory, anchor.X, anchor.Y, anchor.R);
     }
 
     /// <summary>Ahtapot dokunaçları — blob'un ALT KENARINA tutturulur, ölçüden türetilmez.</summary>

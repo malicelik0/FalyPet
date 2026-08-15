@@ -28,8 +28,23 @@ internal sealed class TrayIconService : IDisposable
     private IntPtr _iconHandle;
 
     public event EventHandler? ToggleVisibilityRequested;
+    public event EventHandler? SettingsRequested;
     public event EventHandler? CheckUpdatesRequested;
     public event EventHandler? ExitRequested;
+
+    /// <summary>
+    /// Ayarlar penceresinden değiştirilebildiği için tik dışarıdan tazelenebilmeli.
+    /// Bayrak şart: tik'i programatik değiştirmek CheckedChanged'i tetikler ve kayıt
+    /// defterine gereksiz bir yazma daha yapılırdı (başarısızsa yanlış uyarı da çıkardı).
+    /// </summary>
+    public void RefreshAutoStartState()
+    {
+        _suppressAutoStartEvent = true;
+        _autoStartItem.Checked = AutoStartService.IsEnabled;
+        _suppressAutoStartEvent = false;
+    }
+
+    private bool _suppressAutoStartEvent;
 
     public TrayIconService()
     {
@@ -41,6 +56,10 @@ internal sealed class TrayIconService : IDisposable
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
+        var settingsItem = new WinForms.ToolStripMenuItem("Ayarlar…");
+        settingsItem.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
+        menu.Items.Add(settingsItem);
+
         _autoStartItem = new WinForms.ToolStripMenuItem("Windows ile başlat")
         {
             CheckOnClick = true,
@@ -48,6 +67,8 @@ internal sealed class TrayIconService : IDisposable
         };
         _autoStartItem.CheckedChanged += (_, _) =>
         {
+            if (_suppressAutoStartEvent) return;
+
             // Yazma başarısız olursa (kısıtlı ortam, grup ilkesi) tik geri alınır —
             // kullanıcı açık sanıp da çalışmadığını fark etmemeli.
             if (!AutoStartService.TrySet(_autoStartItem.Checked))
