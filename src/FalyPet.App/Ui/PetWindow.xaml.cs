@@ -45,8 +45,21 @@ public partial class PetWindow : Window
     private TimeSpan _sinceSave;
 
     private AlphaMask _mask;
-    private (GrowthStage Stage, PetAnimation Anim, int Frame, bool Left, string Costume) _renderedKey
-        = (GrowthStage.Egg, PetAnimation.Idle, -1, false, "");
+    private (GrowthStage Stage, PetAnimation Anim, int Frame, bool Left, string Costume, int Gaze) _renderedKey
+        = (GrowthStage.Egg, PetAnimation.Idle, -1, false, "", 0);
+
+    /// <summary>
+    /// Pet'in imlece bakıp bakmadığı. Fare konumu tıkla-geç için zaten her tikte
+    /// okunuyor, yani bu bedava geliyor — ve bir masaüstü pet'ini "canlı"
+    /// hissettiren en ucuz detay bu.
+    /// </summary>
+    private int _gaze;
+
+    /// <summary>İmleç bu uzaklığın ötesindeyse pet ilgilenmez (ör. öteki monitörde).</summary>
+    private const double GazeRange = 600.0;
+
+    /// <summary>Bu kadar yakın yatay farkta gözler düz bakar; yoksa bebek titrer durur.</summary>
+    private const double GazeDeadZone = 24.0;
     private GrowthStage _lastStage;
 
     private bool _dragging;
@@ -169,6 +182,7 @@ public partial class PetWindow : Window
 
         if (!_dragging && Math.Abs(Left - _behavior.X) > 0.5) Left = _behavior.X;
 
+        UpdateGaze();
         UpdateSprite();
         UpdateClickThrough();
 
@@ -223,17 +237,47 @@ public partial class PetWindow : Window
         SaveNow();
     }
 
+    private void UpdateGaze()
+    {
+        // Uyuyan, küskün ya da hasta pet takip etmez — gözleri zaten kapalı/yok.
+        if (_behavior.Animation is PetAnimation.Sleep or PetAnimation.Sulk or PetAnimation.Sick)
+        {
+            _gaze = 0;
+            return;
+        }
+
+        if (!NativeMethods.GetCursorPos(out var native)) { _gaze = 0; return; }
+
+        var cursor = ScreenToDip(native);
+        var centerX = Left + Width / 2;
+        var centerY = Top + Height / 2;
+
+        var dx = cursor.X - centerX;
+        var dy = cursor.Y - centerY;
+
+        if (Math.Abs(dx) > GazeRange || Math.Abs(dy) > GazeRange || Math.Abs(dx) < GazeDeadZone)
+        {
+            _gaze = 0;
+            return;
+        }
+
+        // Sprite hep sağa bakar çizilip sola aynalanıyor; aynalıyken ekrandaki
+        // yön sprite uzayında tersine döner.
+        var worldGaze = Math.Sign(dx);
+        _gaze = _behavior.FaceLeft ? -worldGaze : worldGaze;
+    }
+
     private void UpdateSprite()
     {
         // Yumurtada "kare" animasyon karesi değil çatlak sayısıdır.
         var frame = _sim.Stage == GrowthStage.Egg ? _save.Pet!.EggCracks : _behavior.Frame;
         var costumeId = _save.Pet!.EquippedCostumeId ?? "";
-        var key = (_sim.Stage, _behavior.Animation, frame, _behavior.FaceLeft, costumeId);
+        var key = (_sim.Stage, _behavior.Animation, frame, _behavior.FaceLeft, costumeId, _gaze);
         if (key == _renderedKey) return;
 
         _renderedKey = key;
         var accessory = AccessoryCatalog.ById(_save.Pet.EquippedCostumeId);
-        SpriteImage.Source = _sprites.Get(_species, key.Item1, key.Item2, key.Item3, key.Item4, accessory);
+        SpriteImage.Source = _sprites.Get(_species, key.Item1, key.Item2, key.Item3, key.Item4, accessory, key.Item6);
         _mask = _sprites.GetMask(_species, key.Item1, key.Item2, key.Item3, key.Item4, accessory);
     }
 
@@ -510,7 +554,7 @@ public partial class PetWindow : Window
         _shop.CostumeChanged += (_, _) =>
         {
             // Anahtarı geçersiz kıl ki bir sonraki tikte sprite yeniden yüklensin.
-            _renderedKey = (_renderedKey.Stage, _renderedKey.Anim, -1, _renderedKey.Left, "");
+            _renderedKey = (_renderedKey.Stage, _renderedKey.Anim, -1, _renderedKey.Left, "", _renderedKey.Gaze);
         };
         _shop.Closed += (_, _) => _shop = null;
         _shop.Show();

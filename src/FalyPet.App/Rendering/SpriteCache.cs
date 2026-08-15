@@ -21,7 +21,7 @@ namespace FalyPet.App.Rendering;
 /// </summary>
 internal sealed class SpriteCache
 {
-    private readonly record struct Key(string Species, GrowthStage Stage, PetAnimation Anim, int Frame, bool FaceLeft, string Accessory);
+    private readonly record struct Key(string Species, GrowthStage Stage, PetAnimation Anim, int Frame, bool FaceLeft, string Accessory, int Gaze);
 
     private readonly Dictionary<Key, BitmapSource> _sprites = [];
     private readonly Dictionary<Key, AlphaMask> _masks = [];
@@ -33,22 +33,27 @@ internal sealed class SpriteCache
     public bool UsingRealArt => _sheets.RootExists;
 
     public BitmapSource Get(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
-        bool faceLeft, AccessoryDefinition? accessory = null)
+        bool faceLeft, AccessoryDefinition? accessory = null, int gaze = 0)
     {
-        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "");
+        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "", gaze);
         if (_sprites.TryGetValue(key, out var cached)) return cached;
 
-        var sprite = Build(species, stage, anim, frame, accessory);
+        var sprite = Build(species, stage, anim, frame, accessory, gaze);
         if (faceLeft) sprite = MirrorHorizontally(sprite);
 
         _sprites[key] = sprite;
         return sprite;
     }
 
+    /// <summary>
+    /// Alfa maskesi bakış yönünden ETKİLENMEZ — göz bebeği siluetin içinde kalır.
+    /// Bu yüzden maske anahtarında gaze her zaman 0: aynı silueti üç kez saklamak
+    /// tıkla-geç için hiçbir şey kazandırmaz, sadece bellek harcar.
+    /// </summary>
     public AlphaMask GetMask(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
         bool faceLeft, AccessoryDefinition? accessory = null)
     {
-        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "");
+        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "", 0);
         if (_masks.TryGetValue(key, out var cached)) return cached;
 
         var mask = AlphaMask.FromBitmap(Get(species, stage, anim, frame, faceLeft, accessory));
@@ -57,7 +62,7 @@ internal sealed class SpriteCache
     }
 
     private BitmapSource Build(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
-        AccessoryDefinition? accessory)
+        AccessoryDefinition? accessory, int gaze)
     {
         var sheetFrame = _sheets.TryGetFrame(species, stage, anim, frame);
 
@@ -65,7 +70,7 @@ internal sealed class SpriteCache
         {
             return stage == GrowthStage.Egg
                 ? PetSpriteFactory.CreateEgg(species, frame)
-                : PetSpriteFactory.Create(species, stage, anim, frame, accessory);
+                : PetSpriteFactory.Create(species, stage, anim, frame, accessory, gaze);
         }
 
         // Gerçek sanat bulundu. Kostümü sanatın içinde beklemek yerine üstüne

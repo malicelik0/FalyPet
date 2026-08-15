@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -48,14 +49,14 @@ internal static class SpriteDump
         }
 
         report.AppendLine();
-        report.AppendLine("satirlar = turler, sutunlar = asama/durum:");
-        report.AppendLine("  yumurta(0c) yumurta(3c) bebek cocuk genc yetiskin yuruyus uyku oyun hasta kuskun");
+        report.AppendLine("satirlar = turler, sutunlar sirasiyla:");
+        report.AppendLine("  " + string.Join(" ", Columns.Select(c => c.Label)));
 
         File.WriteAllText(Path.Combine(directory, "report.txt"), report.ToString());
         return report.ToString();
     }
 
-    private readonly record struct Column(string Label, GrowthStage Stage, PetAnimation Anim, int Frame);
+    private readonly record struct Column(string Label, GrowthStage Stage, PetAnimation Anim, int Frame, int Gaze = 0);
 
     private static readonly Column[] Columns =
     [
@@ -65,6 +66,9 @@ internal static class SpriteDump
         new("cocuk",    GrowthStage.Child, PetAnimation.Idle,  0),
         new("genc",     GrowthStage.Teen,  PetAnimation.Idle,  0),
         new("yetiskin", GrowthStage.Adult, PetAnimation.Idle,  0),
+        // Bakış sütunları: göz bebeği gerçekten kayıyor mu, gözle görülsün.
+        new("bakis-sol",  GrowthStage.Adult, PetAnimation.Idle, 0, -1),
+        new("bakis-sag",  GrowthStage.Adult, PetAnimation.Idle, 0,  1),
         new("yuruyus",  GrowthStage.Adult, PetAnimation.Walk,  1),
         new("uyku",     GrowthStage.Adult, PetAnimation.Sleep, 1),
         new("oyun",     GrowthStage.Adult, PetAnimation.Play,  1),
@@ -104,7 +108,7 @@ internal static class SpriteDump
 
             var sprite = spec.Stage == GrowthStage.Egg
                 ? PetSpriteFactory.CreateEgg(def, spec.Frame)
-                : PetSpriteFactory.Create(def, spec.Stage, spec.Anim, spec.Frame);
+                : PetSpriteFactory.Create(def, spec.Stage, spec.Anim, spec.Frame, null, spec.Gaze);
 
             checkedCount++;
             var problem = Inspect(sprite, $"{def.Id}/{spec.Label}");

@@ -26,8 +26,13 @@ internal static class PetSpriteFactory
 
     private const double CenterX = 16.0;
 
+    /// <param name="gaze">
+    /// Göz bebeğinin kayacağı yön, SPRITE uzayında (-1 sol, 0 düz, 1 sağ).
+    /// Sprite hep sağa bakar çizilip sola aynalandığı için, çağıran taraf
+    /// aynalamayı hesaba katmak zorunda.
+    /// </param>
     public static WriteableBitmap Create(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
-        AccessoryDefinition? accessory = null)
+        AccessoryDefinition? accessory = null, int gaze = 0)
     {
         if (stage == GrowthStage.Egg) return CreateEgg(species, frame);
 
@@ -38,10 +43,14 @@ internal static class PetSpriteFactory
         var bob = BobOffset(anim, frame);
         var anchor = GetHeadAnchor(species, stage, anim, frame, accessory);
 
+        // Yürürken bakış her zaman ileri: sprite sağa bakar çizilip sola aynalandığı
+        // için +1 ileriyi verir ve aynalama iki yönü de doğru gösterir.
+        var effectiveGaze = anim == PetAnimation.Walk ? 1 : Math.Clamp(gaze, -1, 1);
+
         if (species.Body == BodyShape.Blob)
-            DrawBlob(canvas, species, m, bob, anim, frame, outline, accessory, anchor);
+            DrawBlob(canvas, species, m, bob, anim, frame, outline, accessory, anchor, effectiveGaze);
         else
-            DrawCreature(canvas, species, m, bob, anim, frame, outline, accessory, anchor);
+            DrawCreature(canvas, species, m, bob, anim, frame, outline, accessory, anchor, effectiveGaze);
 
         return canvas.ToBitmap();
     }
@@ -177,7 +186,7 @@ internal static class PetSpriteFactory
     // ---------------------------------------------------------------- normal yaratık
 
     private static void DrawCreature(SpriteCanvas c, SpeciesDefinition s, Metrics m,
-        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor)
+        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor, int gaze)
     {
         var bodyCy = Ground - m.BodyRy + bob;
 
@@ -199,12 +208,12 @@ internal static class PetSpriteFactory
 
         DrawMarkings(c, s, m, bodyCy, headCx, headCy);
         c.Outline(outline);
-        DrawFace(c, s, headCx, headCy, m.HeadR, anim, frame, outline);
+        DrawFace(c, s, headCx, headCy, m.HeadR, anim, frame, outline, gaze);
         DrawAccessory(c, accessory, headCx, headCy, m.HeadR);
     }
 
     private static void DrawBlob(SpriteCanvas c, SpeciesDefinition s, Metrics m,
-        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor)
+        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor, int gaze)
     {
         // Jöle/hayalet/ahtapotta ayrı kafa yok: tek kütle, yüz üst kısmında.
         // Yükseklik tavana göre kısıtlanıyor, yoksa yetişkin blob kareyi taşıyor.
@@ -223,7 +232,7 @@ internal static class PetSpriteFactory
         DrawMarkings(c, s, m, cy + ry * 0.35, CenterX, cy - ry * 0.30);
         c.Outline(outline);
 
-        DrawFace(c, s, CenterX, cy - ry * 0.28, m.HeadR * 0.95, anim, frame, outline);
+        DrawFace(c, s, CenterX, cy - ry * 0.28, m.HeadR * 0.95, anim, frame, outline, gaze);
         DrawAccessory(c, accessory, anchor.X, anchor.Y, anchor.R);
     }
 
@@ -369,7 +378,7 @@ internal static class PetSpriteFactory
     // ---------------------------------------------------------------- yüz
 
     private static void DrawFace(SpriteCanvas c, SpeciesDefinition s, double hx, double hy, double r,
-        PetAnimation anim, int frame, uint outline)
+        PetAnimation anim, int frame, uint outline, int gaze)
     {
         // Küskün pet sırtını döner: yüz hiç çizilmez. En güçlü ifade, ifadenin yokluğudur.
         if (anim == PetAnimation.Sulk) return;
@@ -377,11 +386,6 @@ internal static class PetSpriteFactory
         var eyeDx = r * 0.42;
         var eyeY = hy - r * 0.10;
         var ink = SpriteCanvas.Darken(outline, 0.35);
-
-        // Bakış yönü: yürürken göz bebeği ileri kayar. Tek piksellik bir detay ama
-        // pet'in "bir yere gittiğini" hissettiren şey bu — sabit bakan gözler
-        // yürüyen bir karakteri cansız gösteriyor.
-        var gaze = anim == PetAnimation.Walk ? 1 : 0;
 
         switch (anim)
         {
