@@ -78,6 +78,7 @@ public partial class App : System.Windows.Application
         _petWindow = new PetWindow(_store, _save, sprites);
 
         _tray = new TrayIconService();
+        _petWindow.TrayNotificationRequested += (_, message) => _tray?.ShowMessage("FalyPet", message);
         // Bu lambdalar _petWindow ALANINI okuyor, yerel bir kopyayı değil.
         // Önemli: "Pet'i sıfırla" pencereyi yok edip yenisini kuruyor; null geçidi
         // o kısa aralıkta çökmeyi engelliyor.
@@ -140,6 +141,7 @@ public partial class App : System.Windows.Application
         if (!RunOnboarding(sprites)) { Shutdown(); return; }
 
         _petWindow = new PetWindow(_store, _save, sprites);
+        _petWindow.TrayNotificationRequested += (_, message) => _tray?.ShowMessage("FalyPet", message);
         _petWindow.Show();
         _tray?.SetPetVisible(_petWindow.IsPetVisible);
     }

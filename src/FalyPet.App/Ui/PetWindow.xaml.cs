@@ -146,6 +146,22 @@ public partial class PetWindow : Window
         _sim.Advance(DateTimeOffset.UtcNow);
         NotifyIfGrown();
 
+        // Uyarı denetimi görünürlük kontrolünden ÖNCE: pet gizliyken de haber
+        // vermeli, hatta asıl o zaman vermeli — kullanıcı onu göremiyor.
+        if (_alertGraceRemaining > TimeSpan.Zero)
+        {
+            _alertGraceRemaining -= delta;
+        }
+        else
+        {
+            _sinceAlertCheck += delta;
+            if (_sinceAlertCheck >= AlertCheckInterval)
+            {
+                _sinceAlertCheck = TimeSpan.Zero;
+                CheckNeedAlerts();
+            }
+        }
+
         if (!IsPetVisible) { SetClickThrough(true); return; }
 
         var (minX, maxX) = HorizontalBounds();
@@ -162,6 +178,34 @@ public partial class PetWindow : Window
             _sinceSave = TimeSpan.Zero;
             SaveNow();
         }
+    }
+
+    /// <summary>İhtiyaç uyarılarına bakma sıklığı. Kararın kendisi zaten kendi
+    /// bekleme süresini uyguluyor; burada sadece boşuna sorgulamamak için.</summary>
+    private static readonly TimeSpan AlertCheckInterval = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Açılıştan sonra uyarı için beklenen süre. Karşılama balonu zaten durumu
+    /// söylüyor ("Pamuk çok aç — ilgilenmen lazım"); hemen ardından ikinci bir
+    /// balonun aynı şeyi tekrarlaması gürültü olur.
+    /// </summary>
+    private static readonly TimeSpan StartupAlertGrace = TimeSpan.FromSeconds(45);
+
+    private readonly NeedAlertTracker _alerts = new();
+    private TimeSpan _sinceAlertCheck;
+    private TimeSpan _alertGraceRemaining = StartupAlertGrace;
+
+    /// <summary>Pet gizliyken uyarı tepsiden gösterilmeli — bunu App bağlıyor.</summary>
+    public event EventHandler<string>? TrayNotificationRequested;
+
+    private void CheckNeedAlerts()
+    {
+        if (_alerts.Poll(_sim, DateTimeOffset.UtcNow) is not { } alert) return;
+
+        // Görünüyorsa pet'in kendi ağzından söylesin; gizliyse tepsiden.
+        // Gizli pet için balon göstermek görünmez bir uyarı olurdu.
+        if (IsPetVisible) Say(alert.Message, TimeSpan.FromSeconds(6));
+        else TrayNotificationRequested?.Invoke(this, alert.Message);
     }
 
     private void NotifyIfGrown()
