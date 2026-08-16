@@ -108,6 +108,11 @@ public sealed class Needs
     public static readonly NeedKind[] Physical =
         [NeedKind.Hunger, NeedKind.Thirst, NeedKind.Energy, NeedKind.Cleanliness];
 
+    // Aşağıdakiler HESAPLANAN değerler, durum değil. JsonIgnore olmadan kayıt
+    // dosyasına da yazılıyorlardı: dosyayı şişiriyor, elle düzenleyeni yanıltıyor
+    // ve ileride birine setter eklenirse bayat değerler geri yüklenmeye başlardı.
+
+    [System.Text.Json.Serialization.JsonIgnore]
     public NeedKind LowestKind
     {
         get
@@ -119,9 +124,11 @@ public sealed class Needs
         }
     }
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public double Lowest => Get(LowestKind);
 
     /// <summary>Mutluluk hariç en düşük ihtiyaç.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public double LowestPhysical
     {
         get

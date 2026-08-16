@@ -65,6 +65,27 @@ public sealed class SaveStoreTests : IDisposable
     }
 
     [Fact]
+    public void Hesaplanan_alanlar_diske_yazilmaz()
+    {
+        // REGRESYON: Needs uzerindeki Lowest/LowestKind/LowestPhysical hesaplanan
+        // degerler ama JsonIgnore olmadigi icin kayit dosyasina da yaziliyorlardi.
+        // Yuklerken gormezden geliniyorlardi (setter yok), ancak dosyayi sisiriyor
+        // ve ileride birine setter eklenirse bayat deger geri yuklenmeye baslardi.
+        var store = NewStore();
+        store.Save(new SaveData
+        {
+            Pet = new PetSave { Name = "T", Needs = new FalyPet.Core.Model.Needs { Hunger = 40 } },
+        });
+
+        var json = File.ReadAllText(SavePath);
+
+        Assert.DoesNotContain("Lowest", json);
+        Assert.DoesNotContain("LowestKind", json);
+        Assert.DoesNotContain("LowestPhysical", json);
+        Assert.Contains("Hunger", json);   // gercek durum yazilmaya devam etmeli
+    }
+
+    [Fact]
     public void Kaydetmek_gecici_dosya_birakmaz()
     {
         NewStore().Save(new SaveData());
