@@ -60,8 +60,11 @@ internal static class SpriteDump
 
     private static readonly Column[] Columns =
     [
-        new("yumurta0", GrowthStage.Egg,   PetAnimation.Idle,  0),
-        new("yumurta3", GrowthStage.Egg,   PetAnimation.Idle,  3),
+        // Yumurtada "kare" = okşama sayısı. Üç nokta: hiç, yarı, tam —
+        // çatlakların gerçekten oransal ilerlediği gözle görülsün.
+        new("yum-0",    GrowthStage.Egg,   PetAnimation.Idle,  0),
+        new("yum-yari", GrowthStage.Egg,   PetAnimation.Idle,  Core.Simulation.SimulationRules.EggCracksRequired / 2),
+        new("yum-tam",  GrowthStage.Egg,   PetAnimation.Idle,  Core.Simulation.SimulationRules.EggCracksRequired),
         new("bebek",    GrowthStage.Baby,  PetAnimation.Idle,  0),
         new("cocuk",    GrowthStage.Child, PetAnimation.Idle,  0),
         new("genc",     GrowthStage.Teen,  PetAnimation.Idle,  0),

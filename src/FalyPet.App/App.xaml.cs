@@ -44,6 +44,16 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        // İkon üretimi: uygulama ikonunu prosedürel yumurtadan .ico olarak yazar.
+        // Derleme öncesi bir kez çalıştırılıp sonucu depoya işleniyor.
+        if (e.Args.Length >= 2 && e.Args[0] == "--make-icon")
+        {
+            var result = Diagnostics.IconBuilder.Write(e.Args[1]);
+            System.IO.File.WriteAllText(e.Args[1] + ".log", result);
+            Shutdown();
+            return;
+        }
+
         // Duman testi: bütün pencereleri kurup kapatır, hata varsa raporlar.
         // Birim testleri Core'u kapsıyor ama WPF pencerelerini kapsamıyordu.
         if (e.Args.Length >= 2 && e.Args[0] == "--self-test")

@@ -188,6 +188,7 @@ public partial class PetWindow : Window
         UpdateGaze();
         UpdateSprite();
         UpdateClickThrough();
+        ApplyFade(delta);
 
         _sinceSave += delta;
         if (_sinceSave >= AutoSaveInterval)
@@ -355,10 +356,38 @@ public partial class PetWindow : Window
 
     // ---------------------------------------------------------------- tıkla-geç
 
+    /// <summary>Fare pet'in üstündeyken pencerenin saydamlığı. Altındakini görebilmek için.</summary>
+    private const double HoverOpacity = 0.40;
+
+    /// <summary>Solma/geri gelme süresi (ms). Anî geçiş rahatsız edici oluyor.</summary>
+    private const double FadeMs = 130.0;
+
+    private double _targetOpacity = 1.0;
+
     private void UpdateClickThrough()
     {
-        if (_dragging) { SetClickThrough(false); return; }
-        SetClickThrough(!IsCursorOverPet());
+        if (_dragging)
+        {
+            SetClickThrough(false);
+            _targetOpacity = HoverOpacity;
+            return;
+        }
+
+        // Solma yalnızca GÖRÜNÜRLÜĞÜ değiştiriyor, tıklanabilirliği değil:
+        // pet soluk haldeyken de beslenebilir, sürüklenebilir. Amaç altındaki
+        // pencereyi görebilmek, pet'i devre dışı bırakmak değil.
+        var over = IsCursorOverPet();
+        SetClickThrough(!over);
+        _targetOpacity = over ? HoverOpacity : 1.0;
+    }
+
+    private void ApplyFade(TimeSpan delta)
+    {
+        var fark = _targetOpacity - Opacity;
+        if (Math.Abs(fark) < 0.01) { Opacity = _targetOpacity; return; }
+
+        var adim = delta.TotalMilliseconds / FadeMs;
+        Opacity += Math.Sign(fark) * Math.Min(adim, Math.Abs(fark));
     }
 
     private bool IsCursorOverPet()

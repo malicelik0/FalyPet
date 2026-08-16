@@ -2,6 +2,7 @@ using System;
 using System.Windows.Media.Imaging;
 using FalyPet.Core.Content;
 using FalyPet.Core.Model;
+using FalyPet.Core.Simulation;
 
 namespace FalyPet.App.Rendering;
 
@@ -592,19 +593,34 @@ internal static class PetSpriteFactory
         return c.ToBitmap();
     }
 
+    /// <summary>
+    /// Çatlak yolu: üç ayrı çatlağın pikselleri, oluşma sırasına göre dizilmiş.
+    /// Kullanıcının okşama sayısına ORANLA açığa çıkarılıyor.
+    ///
+    /// Sabit kademeler (1. çatlak, 2. çatlak, 3. çatlak) yerine oran kullanmanın
+    /// sebebi: gereken okşama sayısı 20'ye çıkınca üç kademe 3 tıkta biterdi ve
+    /// kalan 17 tık hiçbir görsel değişiklik üretmezdi. Kullanıcı boşluğa tıklıyor
+    /// hissine kapılırdı. Bu haliyle her okşama gözle görülür bir ilerleme.
+    /// </summary>
+    private static readonly (int X, int Y)[] CrackPath =
+    [
+        (13, 9), (14, 10), (13, 11), (15, 11), (16, 12), (15, 13), (17, 13),
+        (19, 14), (18, 15), (20, 15), (19, 16), (20, 17), (18, 18), (19, 19),
+        (11, 18), (12, 19), (11, 20), (13, 20), (12, 21), (14, 22), (13, 23),
+        (12, 24), (14, 24), (15, 25), (13, 25),
+    ];
+
     private static void DrawCracks(SpriteCanvas c, int cracks, uint ink)
     {
-        // Her çatlak görünür bir ilerleme. Kullanıcı ne kadar kaldığını görmeli.
-        if (cracks >= 1)
-            foreach (var (x, y) in new[] { (13, 9), (14, 10), (13, 11), (15, 11), (16, 12) })
-                if (c.IsSolid(x, y)) c.Plot(x, y, ink);
+        if (cracks <= 0) return;
 
-        if (cracks >= 2)
-            foreach (var (x, y) in new[] { (19, 14), (18, 15), (20, 15), (19, 16), (20, 17), (18, 18) })
-                if (c.IsSolid(x, y)) c.Plot(x, y, ink);
+        var oran = Math.Clamp(cracks / (double)SimulationRules.EggCracksRequired, 0, 1);
+        var adet = (int)Math.Ceiling(oran * CrackPath.Length);
 
-        if (cracks >= 3)
-            foreach (var (x, y) in new[] { (11, 18), (12, 19), (11, 20), (13, 20), (12, 21), (14, 22), (13, 23) })
-                if (c.IsSolid(x, y)) c.Plot(x, y, ink);
+        for (var i = 0; i < adet && i < CrackPath.Length; i++)
+        {
+            var (x, y) = CrackPath[i];
+            if (c.IsSolid(x, y)) c.Plot(x, y, ink);
+        }
     }
 }

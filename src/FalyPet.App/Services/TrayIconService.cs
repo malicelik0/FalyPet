@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Runtime.InteropServices;
 using WinForms = System.Windows.Forms;
 
@@ -116,6 +117,31 @@ internal sealed class TrayIconService : IDisposable
         _icon.ShowBalloonTip(4000, title, body, WinForms.ToolTipIcon.None);
 
     private static Icon CreateIcon(out IntPtr handle)
+    {
+        handle = IntPtr.Zero;
+
+        // Önce exe'ye gömülü ikonu kullan: masaüstü kısayolu, görev çubuğu ve
+        // tepsi böylece aynı görüntüyü paylaşır. İki ayrı çizim tutmak, birini
+        // güncelleyip diğerini unutmanın garantisidir.
+        try
+        {
+            var path = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(path))
+            {
+                var embedded = Icon.ExtractAssociatedIcon(path);
+                if (embedded is not null) return embedded;
+            }
+        }
+        catch (Exception e) when (e is ArgumentException or IOException or System.ComponentModel.Win32Exception)
+        {
+            // Gömülü ikon okunamadıysa aşağıdaki çizime düş.
+        }
+
+        return DrawFallbackIcon(out handle);
+    }
+
+    /// <summary>Gömülü ikon okunamazsa kullanılan yedek — uygulama ikonsuz kalmasın.</summary>
+    private static Icon DrawFallbackIcon(out IntPtr handle)
     {
         using var bitmap = new Bitmap(32, 32);
         using (var g = Graphics.FromImage(bitmap))

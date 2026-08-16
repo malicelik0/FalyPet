@@ -29,7 +29,10 @@
     <!-- WPF'in App.xaml'den urettigi Main yerine kendi giris noktamiz kullaniliyor:
          Velopack ilk satirda calismak zorunda. Ayrinti: Program.cs -->
     <StartupObject>FalyPet.App.Program</StartupObject>
-    <ApplicationIcon></ApplicationIcon>
+    <!-- Prosedürel yumurtadan üretildi. Tazelemek için IconBuilder'ı çalıştır:
+         FalyPet.exe (make-icon anahtarı ile) FalyPet.ico
+         Sprite değişirse ikon tek komutla yenilenir, ikisi asla ayrışmaz. -->
+    <ApplicationIcon>FalyPet.ico</ApplicationIcon>
 
     <!-- PerMonitorV2 DPI. Pixel-art bir uygulama için pazarlık dışı: bu olmadan
          farklı ölçekli ikinci monitörde Windows pencereyi bitmap olarak esnetir
