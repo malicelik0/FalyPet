@@ -27,6 +27,18 @@ public sealed class SaveData
     /// bile kullanıcının ses tercihi korunmalı.
     /// </summary>
     public bool SoundEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Sprite'ın kaç kat büyütüleceği. 32 piksellik sprite × ölçek = pencere boyutu.
+    ///
+    /// TAM SAYI olmak zorunda: 1.5 gibi bir kat bazı pikselleri 1, bazılarını 2
+    /// piksel genişliğinde çizer ve pixel art'ın tamamı bozulur. Bu yüzden ayar
+    /// sürekli bir kaydırıcı değil, kademeli.
+    /// </summary>
+    public int PetScale { get; set; } = 5;
+
+    public const int MinPetScale = 3;   //  96 px
+    public const int MaxPetScale = 8;   // 256 px
 }
 
 public sealed class WindowSave

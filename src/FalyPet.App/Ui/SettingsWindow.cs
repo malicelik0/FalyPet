@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -26,6 +27,11 @@ internal sealed class SettingsWindow : Window
     private readonly TextBlock _status;
 
     public event EventHandler? PetResetRequested;
+
+    /// <summary>Seçilen yeni ölçek. App bunu PetWindow'a iletiyor.</summary>
+    public event EventHandler<int>? ScaleChangeRequested;
+
+    public event EventHandler<bool>? SoundToggled;
 
     public SettingsWindow(SaveStore store, SaveData save, SpriteCache sprites, string version)
     {
@@ -70,6 +76,20 @@ internal sealed class SettingsWindow : Window
         autoStart.Unchecked += (_, _) => ApplyAutoStart(autoStart, false);
         panel.Children.Add(autoStart);
 
+        panel.Children.Add(Header("Pet boyutu"));
+        panel.Children.Add(BuildScaleRow());
+
+        var sound = new CheckBox
+        {
+            Content = "Ses efektleri",
+            IsChecked = _save.SoundEnabled,
+            FontSize = 13,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+        sound.Checked += (_, _) => ApplySound(true);
+        sound.Unchecked += (_, _) => ApplySound(false);
+        panel.Children.Add(sound);
+
         panel.Children.Add(Header("Kayıt"));
         panel.Children.Add(new TextBlock
         {
@@ -103,6 +123,62 @@ internal sealed class SettingsWindow : Window
 
         panel.Children.Add(_status);
         return panel;
+    }
+
+    /// <summary>
+    /// Boyut kademeleri düğme olarak. Kaydırıcı KULLANILMIYOR: ölçek tam sayı
+    /// katı olmak zorunda (yoksa pixel art'ta pikseller eşitsiz genişlikte çıkar),
+    /// ve sürekli görünen bir kaydırıcı kullanıcıya ara değer varmış izlenimi verirdi.
+    /// </summary>
+    private UIElement BuildScaleRow()
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        var buttons = new List<(Button Button, int Scale)>();
+
+        foreach (var (scale, label) in PetWindow.ScaleOptions)
+        {
+            var b = new Button
+            {
+                Content = label,
+                Height = 30,
+                MinWidth = 62,
+                FontSize = 11.5,
+                Margin = new Thickness(0, 0, 5, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+            };
+
+            b.Click += (_, _) =>
+            {
+                _save.PetScale = scale;
+                _store.Save(_save);
+                ScaleChangeRequested?.Invoke(this, scale);
+                foreach (var (other, s) in buttons) Highlight(other, s == scale);
+                Report($"Boyut: {label} ({FalyPet.App.Rendering.PetSpriteFactory.Size * scale} piksel)", ok: true);
+            };
+
+            buttons.Add((b, scale));
+            row.Children.Add(b);
+        }
+
+        foreach (var (b, s) in buttons) Highlight(b, s == _save.PetScale);
+        return row;
+    }
+
+    private static void Highlight(Button b, bool selected)
+    {
+        b.FontWeight = selected ? FontWeights.Bold : FontWeights.Normal;
+        b.BorderBrush = new SolidColorBrush(selected
+            ? Color.FromRgb(0x4A, 0x8A, 0x5A)
+            : Color.FromRgb(0xDD, 0xD6, 0xC8));
+        b.BorderThickness = new Thickness(selected ? 2 : 1);
+    }
+
+    private void ApplySound(bool enabled)
+    {
+        _save.SoundEnabled = enabled;
+        _store.Save(_save);
+        SoundToggled?.Invoke(this, enabled);
+        Report(enabled ? "Ses efektleri açık." : "Ses efektleri kapalı.", ok: true);
     }
 
     private static TextBlock Header(string text) => new()

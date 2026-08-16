@@ -131,6 +131,8 @@ public partial class App : System.Windows.Application
 
         _settings = new SettingsWindow(_store!, _save!, sprites, _updates?.CurrentVersion ?? "geliştirme");
         _settings.PetResetRequested += (_, _) => ResetPet(sprites);
+        _settings.ScaleChangeRequested += (_, scale) => _petWindow?.SetScale(scale);
+        _settings.SoundToggled += (_, enabled) => { if (_sound is not null) _sound.Enabled = enabled; };
         _settings.Closed += (_, _) => { _settings = null; _tray?.RefreshAutoStartState(); };
         _settings.Show();
     }

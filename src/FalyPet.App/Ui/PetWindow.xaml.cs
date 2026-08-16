@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -22,7 +23,6 @@ namespace FalyPet.App.Ui;
 /// </summary>
 public partial class PetWindow : Window
 {
-    private const int SpriteScaleFactor = 5;         // 32 * 5 = 160
     private const double MinVisible = 48.0;
     private const double DragThreshold = 3.0;
 
@@ -89,8 +89,8 @@ public partial class PetWindow : Window
         _sim = new PetSimulation(_save.Pet);
         _lastStage = _sim.Stage;
 
-        Width = PetSpriteFactory.Size * SpriteScaleFactor;
-        Height = PetSpriteFactory.Size * SpriteScaleFactor;
+        Width = PetSpriteFactory.Size * CurrentScale;
+        Height = PetSpriteFactory.Size * CurrentScale;
 
         _hiddenByUser = save.Window.Hidden;
         _behavior = new PetBehavior(save.Window.X ?? 0);
@@ -108,6 +108,48 @@ public partial class PetWindow : Window
     }
 
     public bool IsPetVisible => !_hiddenByUser && !_hiddenByFullscreen;
+
+    // ---------------------------------------------------------------- boyut
+
+    private int CurrentScale => Math.Clamp(_save.PetScale, SaveData.MinPetScale, SaveData.MaxPetScale);
+
+    /// <summary>Ölçek kademelerinin kullanıcıya gösterilen adları ve piksel karşılıkları.</summary>
+    public static IReadOnlyList<(int Scale, string Label)> ScaleOptions { get; } =
+    [
+        (3, "Çok küçük"),
+        (4, "Küçük"),
+        (5, "Normal"),
+        (6, "Büyük"),
+        (7, "Çok büyük"),
+        (8, "Devasa"),
+    ];
+
+    /// <summary>
+    /// Pet'in boyutunu değiştirir.
+    ///
+    /// Ayaklar yerinde kalacak şekilde konumlanıyor: pencere büyürken sol-üst
+    /// köşe sabit tutulsaydı pet yukarı doğru sıçrar, küçülürken havada asılı
+    /// kalırdı. Alt kenar ve yatay merkez sabit tutuluyor.
+    /// </summary>
+    public void SetScale(int scale)
+    {
+        scale = Math.Clamp(scale, SaveData.MinPetScale, SaveData.MaxPetScale);
+        if (scale == CurrentScale) return;
+
+        var altKenar = Top + Height;
+        var merkezX = Left + Width / 2;
+
+        _save.PetScale = scale;
+        Width = PetSpriteFactory.Size * scale;
+        Height = PetSpriteFactory.Size * scale;
+
+        Left = merkezX - Width / 2;
+        Top = altKenar - Height;
+
+        ClampToVisibleArea();
+        _behavior.OnDragged(Left);
+        SaveNow();
+    }
 
     // ---------------------------------------------------------------- kurulum
 
@@ -556,12 +598,36 @@ public partial class PetWindow : Window
         AddItem(menu, "Durum", ShowStatus);
         AddItem(menu, "Yakala oyunu", OpenGame);
         AddItem(menu, "Dükkan", OpenShop);
+        menu.Items.Add(BuildScaleMenu());
 
         menu.Items.Add(new Separator());
         AddItem(menu, "Gizle", ToggleUserVisibility);
 
         menu.Opened += (_, _) => UpdateMenuState();
         return menu;
+    }
+
+    private readonly List<MenuItem> _scaleItems = [];
+
+    /// <summary>
+    /// Boyut alt menüsü. Ayarlar penceresinde de var ama asıl yeri burası:
+    /// kullanıcı pet'i büyütmek isterken önce pet'e sağ tıklar, ayarları açmayı
+    /// düşünmez.
+    /// </summary>
+    private MenuItem BuildScaleMenu()
+    {
+        var root = new MenuItem { Header = "Boyut" };
+
+        foreach (var (scale, label) in ScaleOptions)
+        {
+            var px = PetSpriteFactory.Size * scale;
+            var item = new MenuItem { Header = $"{label}  ({px}px)", IsCheckable = true, Tag = scale };
+            item.Click += (_, _) => SetScale(scale);
+            root.Items.Add(item);
+            _scaleItems.Add(item);
+        }
+
+        return root;
     }
 
     private static MenuItem AddItem(ContextMenu menu, string header, Action action)
@@ -585,6 +651,10 @@ public partial class PetWindow : Window
         _washItem.IsEnabled = awake;
         _sleepItem.IsEnabled = alive;
         _sleepItem.Header = _sim.IsSleeping ? "Uyandır" : "Uyut";
+
+        // Tik'i menü her açıldığında gerçek duruma göre tazele: boyut ayarlar
+        // penceresinden de değiştirilebiliyor, iki yerin ayrışmaması gerekiyor.
+        foreach (var item in _scaleItems) item.IsChecked = (int)item.Tag! == CurrentScale;
     }
 
     private CatchGameWindow? _game;
