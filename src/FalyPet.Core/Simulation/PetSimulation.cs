@@ -93,6 +93,9 @@ public sealed class PetSimulation(PetSave state)
         if (_state.Stage == GrowthStage.Egg)
         {
             _state.LastTickUtc = now;
+
+            // Süre dolduysa okşanmasa da çıkar. Okşama onu HIZLANDIRIR, şart değildir.
+            if (now - _state.BornAtUtc >= SimulationRules.EggHatchTimeout) Hatch(now);
             return;
         }
 
@@ -206,13 +209,29 @@ public sealed class PetSimulation(PetSave state)
 
         if (_state.EggCracks >= SimulationRules.EggCracksRequired)
         {
-            _state.Stage = GrowthStage.Baby;
-            _state.BornAtUtc = now;
+            Hatch(now);
             return CareResult.Accept(0, $"{_state.Name} yumurtadan çıktı!");
         }
 
         var remaining = SimulationRules.EggCracksRequired - _state.EggCracks;
-        return CareResult.Accept(0, $"Yumurta çatladı! ({remaining} çatlak kaldı)");
+        return CareResult.Accept(0, $"Yumurta çatladı! ({remaining} okşama kaldı)");
+    }
+
+    private void Hatch(DateTimeOffset now)
+    {
+        if (_state.Stage != GrowthStage.Egg) return;
+
+        _state.Stage = GrowthStage.Baby;
+        _state.EggCracks = SimulationRules.EggCracksRequired;
+        _state.BornAtUtc = now;
+    }
+
+    /// <summary>Yumurtanın kendiliğinden çıkmasına kalan süre; yumurtada değilse null.</summary>
+    public TimeSpan? EggTimeRemaining(DateTimeOffset now)
+    {
+        if (_state.Stage != GrowthStage.Egg) return null;
+        var kalan = SimulationRules.EggHatchTimeout - (now - _state.BornAtUtc);
+        return kalan > TimeSpan.Zero ? kalan : TimeSpan.Zero;
     }
 
     private CareResult ToggleSleep(DateTimeOffset now)

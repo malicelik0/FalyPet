@@ -183,7 +183,7 @@ public partial class PetWindow : Window
         if (!IsPetVisible) return;
 
         var message = _sim.Stage == GrowthStage.Egg
-            ? $"{_save.Pet!.Name} yumurtada. Isıtmak için tıkla!"
+            ? $"{_save.Pet!.Name} yumurtada.\nTıklayarak çıkar ya da 5 dakika bekle."
             : _sim.GrowthStallReason ?? $"{_save.Pet!.Name} seni özlemiş.";
 
         Say(message, TimeSpan.FromSeconds(5));
@@ -222,14 +222,20 @@ public partial class PetWindow : Window
 
         if (!IsPetVisible) { SetClickThrough(true); return; }
 
+        // "Fare üstünde mi" tek yerde hesaplanıyor: gezinme, tıkla-geç, solma ve
+        // ihtiyaç göstergesi hepsi aynı cevabı kullanmalı. Ayrı ayrı sorulsalardı
+        // biri "üstünde" derken öbürü "değil" diyebilirdi.
+        var over = !_dragging && IsCursorOverPet();
+
         var (minX, maxX) = HorizontalBounds();
-        if (!_dragging) _behavior.Update(delta, _sim, minX, maxX);
+        if (!_dragging) _behavior.Update(delta, _sim, minX, maxX, over);
 
         if (!_dragging && Math.Abs(Left - _behavior.X) > 0.5) Left = _behavior.X;
 
         UpdateGaze();
         UpdateSprite();
-        UpdateClickThrough();
+        UpdateClickThrough(over);
+        UpdateNeedsOverlay(over);
         ApplyFade(delta);
 
         _sinceSave += delta;
@@ -237,6 +243,59 @@ public partial class PetWindow : Window
         {
             _sinceSave = TimeSpan.Zero;
             SaveNow();
+        }
+
+        WriteDiagnostics(delta);
+    }
+
+    // ---------------------------------------------------------------- teşhis
+
+    /// <summary>
+    /// <c>FALYPET_DIAG=&lt;dosya&gt;</c> ortam değişkeni ayarlıysa pencere durumunu
+    /// saniyede bir dosyaya yazar.
+    ///
+    /// "Pet kayboluyor" / "üstüne gelince solmuyor" gibi şikayetler kodu okuyarak
+    /// çözülemiyor: sorun görünürlük, en-üstte olma, tıkla-geç ve saydamlık
+    /// arasındaki etkileşimde ve hepsi aynı anda oynuyor. Bu kayıt hangisinin
+    /// bozulduğunu ölçerek gösteriyor.
+    /// </summary>
+    private static readonly string? DiagPath = Environment.GetEnvironmentVariable("FALYPET_DIAG");
+    private TimeSpan _sinceDiag;
+
+    private void WriteDiagnostics(TimeSpan delta)
+    {
+        if (DiagPath is null) return;
+
+        _sinceDiag += delta;
+        if (_sinceDiag < TimeSpan.FromSeconds(1)) return;
+        _sinceDiag = TimeSpan.Zero;
+
+        try
+        {
+            NativeMethods.GetCursorPos(out var native);
+            var c = ScreenToDip(native);
+            var topmostFlag = _hwnd != IntPtr.Zero
+                && (NativeMethods.GetWindowLongEx(_hwnd, NativeMethods.GWL_EXSTYLE) & 0x8) != 0;
+
+            var satir = string.Join("  ",
+                DateTime.Now.ToString("HH:mm:ss"),
+                $"pencere=({Left:F0},{Top:F0}) {Width:F0}x{Height:F0}",
+                $"imlec=({c.X:F0},{c.Y:F0})",
+                $"uzerinde={IsCursorOverPet()}",
+                $"hedefOpaklik={_targetOpacity:F2}",
+                $"gercekOpaklik={Opacity:F2}",
+                $"gorunur={IsPetVisible}",
+                $"kullaniciGizledi={_hiddenByUser}",
+                $"tamEkranGizledi={_hiddenByFullscreen}",
+                $"enUstte={topmostFlag}",
+                $"tiklaGec={_clickThrough}",
+                $"anim={_behavior.Animation}");
+
+            System.IO.File.AppendAllText(DiagPath, satir + Environment.NewLine);
+        }
+        catch (System.IO.IOException)
+        {
+            // Teşhis yazımı asla uygulamayı durdurmamalı.
         }
     }
 
@@ -406,8 +465,11 @@ public partial class PetWindow : Window
 
     private double _targetOpacity = 1.0;
 
-    private void UpdateClickThrough()
+    private void UpdateClickThrough(bool over)
     {
+        // Solma yalnızca GÖRÜNÜRLÜĞÜ değiştiriyor, tıklanabilirliği değil:
+        // pet soluk haldeyken de beslenebilir, sürüklenebilir. Amaç altındaki
+        // pencereyi görebilmek, pet'i devre dışı bırakmak değil.
         if (_dragging)
         {
             SetClickThrough(false);
@@ -415,12 +477,26 @@ public partial class PetWindow : Window
             return;
         }
 
-        // Solma yalnızca GÖRÜNÜRLÜĞÜ değiştiriyor, tıklanabilirliği değil:
-        // pet soluk haldeyken de beslenebilir, sürüklenebilir. Amaç altındaki
-        // pencereyi görebilmek, pet'i devre dışı bırakmak değil.
-        var over = IsCursorOverPet();
         SetClickThrough(!over);
         _targetOpacity = over ? HoverOpacity : 1.0;
+    }
+
+    private readonly NeedsOverlay _needsOverlay = new();
+
+    /// <summary>
+    /// Fare üstündeyken ihtiyaç çubuklarını gösterir. Yumurtada gösterilmiyor:
+    /// yumurtanın ihtiyacı yok, boş çubuklar göstermek yanıltıcı olurdu.
+    /// </summary>
+    private void UpdateNeedsOverlay(bool over)
+    {
+        if (!over || _sim.Stage == GrowthStage.Egg || !IsPetVisible)
+        {
+            if (_needsOverlay.IsVisible) _needsOverlay.Hide();
+            return;
+        }
+
+        _needsOverlay.UpdateValues(_sim);
+        _needsOverlay.ShowAbove(PetRect);
     }
 
     private void ApplyFade(TimeSpan delta)
@@ -577,8 +653,10 @@ public partial class PetWindow : Window
         _ => null,
     };
 
+    private Rect PetRect => new(Left, Top, Width, Height);
+
     private void Say(string message, TimeSpan duration) =>
-        _bubble.Say(message, new Point(Left, Top), Width, duration);
+        _bubble.Say(message, PetRect, duration);
 
     // ---------------------------------------------------------------- menü
 
@@ -689,8 +767,13 @@ public partial class PetWindow : Window
     {
         if (_sim.Stage == GrowthStage.Egg)
         {
-            var remaining = SimulationRules.EggCracksRequired - _save.Pet!.EggCracks;
-            Say($"{_save.Pet.Name} yumurtada — {remaining} çatlak kaldı.", TimeSpan.FromSeconds(5));
+            var kalanOksama = SimulationRules.EggCracksRequired - _save.Pet!.EggCracks;
+            var kalanSure = _sim.EggTimeRemaining(DateTimeOffset.UtcNow) ?? TimeSpan.Zero;
+
+            // İki koşul da gösteriliyor çünkü VEYA ilişkisi var: kullanıcı ister
+            // tıklayıp hızlandırsın ister beklesin, ikisinin de nerede olduğunu görsün.
+            Say($"{_save.Pet.Name} yumurtada.\n{kalanOksama} okşama kaldı\nya da {kalanSure.TotalMinutes:F0} dk {kalanSure.Seconds} sn bekle",
+                TimeSpan.FromSeconds(6));
             return;
         }
 
@@ -733,13 +816,14 @@ public partial class PetWindow : Window
     private void ApplyVisibility()
     {
         if (IsPetVisible) { Show(); Topmost = true; }
-        else { _bubble.HideNow(); Hide(); }
+        else { _bubble.HideNow(); _needsOverlay.Hide(); Hide(); }
     }
 
     public void SaveOnExit()
     {
         _timer.Stop();
         _bubble.HideNow();
+        _needsOverlay.Close();
         _sim.Advance(DateTimeOffset.UtcNow);
         SaveNow();
     }

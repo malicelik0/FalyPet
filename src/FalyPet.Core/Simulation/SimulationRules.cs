@@ -144,15 +144,25 @@ public static class SimulationRules
 
     // ------------------------------------------------------------------ büyüme
 
-    /// <summary>Yumurtanın çatlaması için gereken okşama sayısı.</summary>
+    /// <summary>Yumurtayı hemen çıkarmak isteyen için gereken okşama sayısı.</summary>
     public const int EggCracksRequired = 20;
 
     /// <summary>
-    /// İki okşama arasında beklenmesi gereken en az süre.
-    /// 20 okşama × 15 saniye ≈ 5 dakika: yumurta ilk oturumda çıkar ama
-    /// hemen değil — kullanıcı onu kendisi çıkarmış olur.
+    /// Hiç okşanmasa bile yumurtanın kendiliğinden çıkacağı süre.
+    ///
+    /// Şart VEYA: 20 okşama <b>ya da</b> 5 dakika — hangisi önce gelirse.
+    /// Önce "20 okşama ve arada 15 saniye bekleme" diye kurulmuştu; o hâlde
+    /// kullanıcı 20 kez tıklayıp 5 dakika da beklemek zorunda kalıyordu, yani
+    /// iki koşul toplanıyordu. Sabırsız olan tıklayarak hızlandırabilmeli,
+    /// sabırlı olan hiç uğraşmadan bekleyebilmeli.
     /// </summary>
-    public static readonly TimeSpan EggCrackCooldown = TimeSpan.FromSeconds(15);
+    public static readonly TimeSpan EggHatchTimeout = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// İki okşama arasındaki en az süre. Yalnızca tek tıklamanın çift saymasını
+    /// engelliyor; hızlı tıklamayı yavaşlatmak gibi bir amacı yok.
+    /// </summary>
+    public static readonly TimeSpan EggCrackCooldown = TimeSpan.FromMilliseconds(120);
 
     /// <summary>Bu aşamaya geçmek için gereken TOPLAM bakım puanı (kümülatif).</summary>
     public static int CarePointsToReach(GrowthStage stage) => stage switch

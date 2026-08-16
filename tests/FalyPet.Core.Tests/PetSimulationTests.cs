@@ -84,10 +84,40 @@ public sealed class PetSimulationTests
     {
         var sim = new PetSimulation(PetSimulation.CreateNew("kedi", "Momo", T0));
 
-        sim.Advance(T0 + TimeSpan.FromDays(2));
+        // Çıkma süresinin altında kalınıyor; amaç ihtiyaçların azalmadığını görmek.
+        sim.Advance(T0 + SimulationRules.EggHatchTimeout - TimeSpan.FromSeconds(1));
 
         Assert.Equal(100, sim.Needs.Hunger);
         Assert.Equal(GrowthStage.Egg, sim.Stage);
+    }
+
+    [Fact]
+    public void Yumurta_hic_oksanmasa_da_sure_dolunca_cikar()
+    {
+        var sim = new PetSimulation(PetSimulation.CreateNew("kedi", "Momo", T0));
+
+        sim.Advance(T0 + SimulationRules.EggHatchTimeout);
+
+        Assert.Equal(GrowthStage.Baby, sim.Stage);
+    }
+
+    [Fact]
+    public void Yumurta_20_oksamada_beklemeden_cikar()
+    {
+        var sim = new PetSimulation(PetSimulation.CreateNew("kedi", "Momo", T0));
+        var now = T0;
+
+        // Sabırsız kullanıcı: art arda tıklıyor, 5 dakika beklemiyor.
+        for (var i = 0; i < SimulationRules.EggCracksRequired; i++)
+        {
+            now += SimulationRules.EggCrackCooldown;
+            sim.Apply(CareAction.Pet, now);
+        }
+
+        Assert.Equal(GrowthStage.Baby, sim.Stage);
+
+        // Toplam süre 5 dakikanın çok altında olmalı — yoksa "veya" değil "ve" olurdu.
+        Assert.True(now - T0 < TimeSpan.FromSeconds(10), $"gecen sure: {now - T0}");
     }
 
     // ------------------------------------------------------------------ yumurta
@@ -112,13 +142,15 @@ public sealed class PetSimulationTests
     }
 
     [Fact]
-    public void Yumurta_pespese_catlatilamaz()
+    public void Ayni_tiklama_cift_saymaz()
     {
+        // Bekleme süresi artık yalnızca tek tıklamanın iki kez işlenmesini
+        // engelliyor; hızlı tıklamayı yavaşlatmak gibi bir amacı yok.
         var sim = new PetSimulation(PetSimulation.CreateNew("kedi", "Momo", T0));
         var now = T0 + SimulationRules.EggCrackCooldown;
 
         sim.Apply(CareAction.Pet, now);
-        var ikinci = sim.Apply(CareAction.Pet, now + TimeSpan.FromSeconds(1));
+        var ikinci = sim.Apply(CareAction.Pet, now + TimeSpan.FromMilliseconds(20));
 
         Assert.False(ikinci.Accepted);
         Assert.Equal(1, sim.State.EggCracks);

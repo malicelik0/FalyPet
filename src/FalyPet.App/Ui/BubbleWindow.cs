@@ -73,7 +73,7 @@ internal sealed class BubbleWindow : Window
     /// Balonu gösterir. <paramref name="anchor"/> pet penceresinin sol-üst köşesi,
     /// <paramref name="petWidth"/> genişliği — balon bunun üstüne ortalanır.
     /// </summary>
-    public void Say(string message, Point anchor, double petWidth, TimeSpan duration)
+    public void Say(string message, Rect pet, TimeSpan duration)
     {
         if (string.IsNullOrWhiteSpace(message)) return;
 
@@ -82,21 +82,26 @@ internal sealed class BubbleWindow : Window
 
         // SizeToContent ölçüyü Show'dan sonra kesinleştirir; konumlandırma o yüzden burada.
         UpdateLayout();
-        Left = anchor.X + petWidth / 2 - ActualWidth / 2;
-        Top = anchor.Y - ActualHeight - 4;
+        Left = pet.Left + pet.Width / 2 - ActualWidth / 2;
+        Top = pet.Top - ActualHeight - 4;
 
-        KeepOnScreen();
+        KeepOnScreen(pet);
 
         _hideTimer.Stop();
         _hideTimer.Interval = duration;
         _hideTimer.Start();
     }
 
-    private void KeepOnScreen()
+    /// <summary>
+    /// Pet'in bulunduğu ekrana göre kıstırılıyor, birincil ekrana göre değil.
+    /// SystemParameters.WorkArea her zaman birincil monitörü verir ve ikincil
+    /// monitördeki pet'in balonunu öteki ekrana fırlatıyordu.
+    /// </summary>
+    private void KeepOnScreen(Rect pet)
     {
-        var work = SystemParameters.WorkArea;
+        var work = ScreenHelper.NearestWorkArea(this, pet);
         Left = Math.Clamp(Left, work.Left + 4, Math.Max(work.Left + 4, work.Right - ActualWidth - 4));
-        if (Top < work.Top + 4) Top = work.Top + 4;
+        if (Top < work.Top + 4) Top = pet.Bottom + 4;
     }
 
     public void HideNow()

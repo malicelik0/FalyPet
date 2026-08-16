@@ -48,7 +48,18 @@ internal sealed class PetBehavior
         _targetX = null;
     }
 
-    public void Update(TimeSpan delta, PetSimulation sim, double minX, double maxX)
+    /// <param name="cursorOver">
+    /// Fare pet'in üstünde mi. Üstündeyse pet DURUR.
+    ///
+    /// Bu davranış olmadan iki ayrı şikayet doğuyordu ve ikisi de aynı sebepten:
+    /// pet imlecin altından yürüyüp kaçıyordu. Kullanıcı (a) "üstüne gelince
+    /// solmuyor" diyordu — çünkü solma başlıyor ama pet bir saniyede altından
+    /// çıkıyordu; (b) "sürekli kayboluyor" diyordu — çünkü bıraktığı yerde durmuyordu.
+    /// Ölçüldü: 12 saniyede 312 piksel gidiyordu.
+    ///
+    /// Durması ayrıca doğru his: hayvan sana bakınca yürümeye devam etmez.
+    /// </param>
+    public void Update(TimeSpan delta, PetSimulation sim, double minX, double maxX, bool cursorOver)
     {
         AdvanceFrameClock(delta);
 
@@ -56,6 +67,14 @@ internal sealed class PetBehavior
         {
             _actionRemaining -= delta;
             Animation = _actionAnimation;
+            return;
+        }
+
+        if (cursorOver)
+        {
+            Animation = PetAnimation.Idle;
+            _targetX = null;
+            _restRemaining = RandomRest();   // fare çekilince hemen fırlamasın
             return;
         }
 
@@ -88,11 +107,20 @@ internal sealed class PetBehavior
 
             _restRemaining = RandomRest();
 
-            // Beşte bir ihtimalle ekranın kenarına gidip orada oturur. Sürekli
-            // ortalarda dolaşan bir pet dikkat dağıtıcı olur; kenar onun "evi".
-            _targetX = _random.Next(5) == 0
-                ? (_random.Next(2) == 0 ? minX : maxX)
-                : minX + _random.NextDouble() * (maxX - minX);
+            // Onda bir ihtimalle ekranın kenarına gidip orada oturur; gerisinde
+            // YAKIN bir noktaya gider. Eskiden hedef bütün ekran genişliğinden
+            // rastgele seçiliyordu ve pet sürekli bir uçtan öbürüne yürüyordu —
+            // kullanıcı onu bıraktığı yerde bulamıyordu.
+            if (_random.Next(10) == 0)
+            {
+                _targetX = _random.Next(2) == 0 ? minX : maxX;
+            }
+            else
+            {
+                var menzil = (maxX - minX) * 0.18;
+                var hedef = X + (_random.NextDouble() * 2 - 1) * menzil;
+                _targetX = Math.Clamp(hedef, minX, maxX);
+            }
 
             return;
         }
@@ -129,7 +157,11 @@ internal sealed class PetBehavior
         return sim.Mood == PetMood.Happy ? baseSpeed * 1.15 : baseSpeed;
     }
 
-    private TimeSpan RandomRest() => TimeSpan.FromSeconds(3 + _random.NextDouble() * 7);
+    /// <summary>
+    /// İki gezinme arasındaki bekleme. Eskiden 3-10 saniyeydi ve pet neredeyse
+    /// sürekli yürüyordu; masaüstünde bu dikkat dağıtıcı ve pet'i "kaybettiriyor".
+    /// </summary>
+    private TimeSpan RandomRest() => TimeSpan.FromSeconds(12 + _random.NextDouble() * 20);
 
     /// <summary>Sürüklenince gezinme hedefi iptal olur — kullanıcı bıraktığı yerde kalsın.</summary>
     public void OnDragged(double newX)
