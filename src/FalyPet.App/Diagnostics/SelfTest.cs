@@ -53,7 +53,8 @@ internal static class SelfTest
             var cases = new (string Name, Func<Window> Create)[]
             {
                 ("OnboardingWindow", () => new OnboardingWindow(sprites)),
-                ("PetWindow",        () => new PetWindow(store, save, sprites)),
+                // Duman testinde ses kapalı: otomatik koşuda makineyi öttürmesin.
+                ("PetWindow",        () => new PetWindow(store, save, sprites, new Services.SoundService { Enabled = false })),
                 ("ShopWindow",       () => new ShopWindow(sim, store, save, species, sprites)),
                 ("SettingsWindow",   () => new SettingsWindow(store, save, sprites, "self-test")),
                 ("CatchGameWindow",  () => new CatchGameWindow(sim, store, save, species, sprites)),

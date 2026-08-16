@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using FalyPet.App.Behavior;
 using FalyPet.App.Interop;
 using FalyPet.App.Rendering;
+using FalyPet.App.Services;
 using FalyPet.Core.Content;
 using FalyPet.Core.Model;
 using FalyPet.Core.Persistence;
@@ -33,6 +34,7 @@ public partial class PetWindow : Window
     private readonly SaveStore _store;
     private readonly SaveData _save;
     private readonly SpriteCache _sprites;
+    private readonly SoundService _sound;
     private readonly SpeciesDefinition _species;
     private readonly PetSimulation _sim;
     private readonly PetBehavior _behavior;
@@ -73,11 +75,12 @@ public partial class PetWindow : Window
 
     // internal: SpriteCache internal olduğu için ctor da olmak zorunda.
     // XAML'den üretilen sınıfın kendisi public kalıyor.
-    internal PetWindow(SaveStore store, SaveData save, SpriteCache sprites)
+    internal PetWindow(SaveStore store, SaveData save, SpriteCache sprites, SoundService sound)
     {
         _store = store;
         _save = save;
         _sprites = sprites;
+        _sound = sound;
 
         InitializeComponent();
 
@@ -456,7 +459,10 @@ public partial class PetWindow : Window
 
     private void Care(CareAction action)
     {
+        var wasEgg = _sim.Stage == GrowthStage.Egg;
         var result = _sim.Apply(action, DateTimeOffset.UtcNow);
+
+        _sound.Play(SoundFor(action, result.Accepted, wasEgg));
 
         if (result.Accepted && ActionAnimation(action) is { } anim)
             _behavior.PlayAction(anim, TimeSpan.FromSeconds(1.6));
@@ -469,6 +475,26 @@ public partial class PetWindow : Window
 
         UpdateMenuState();
         SaveNow();
+    }
+
+    /// <summary>
+    /// Reddedilen eylem de ses çıkarır — sessizce hiçbir şey olmaması kullanıcıya
+    /// "tıklama işlemedi mi" dedirtir. Kısa ve alçak bir "olmaz" sesi cevabı veriyor.
+    /// </summary>
+    private static SoundEffect SoundFor(CareAction action, bool accepted, bool wasEgg)
+    {
+        if (!accepted) return SoundEffect.Refuse;
+        if (wasEgg) return SoundEffect.Crack;
+
+        return action switch
+        {
+            CareAction.Feed => SoundEffect.Eat,
+            CareAction.Water => SoundEffect.Drink,
+            CareAction.Play => SoundEffect.Play,
+            CareAction.Wash => SoundEffect.Wash,
+            CareAction.Sleep => SoundEffect.Sleep,
+            _ => SoundEffect.Poke,
+        };
     }
 
     private static PetAnimation? ActionAnimation(CareAction action) => action switch

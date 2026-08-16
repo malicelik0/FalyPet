@@ -21,6 +21,12 @@ public sealed class SaveData
 
     /// <summary>Pet henüz yaratılmadıysa null. Onboarding'in yapılıp yapılmadığının tek göstergesi.</summary>
     public PetSave? Pet { get; set; }
+
+    /// <summary>
+    /// Ses efektleri açık mı. Pet'e değil uygulamaya ait bir ayar: pet sıfırlansa
+    /// bile kullanıcının ses tercihi korunmalı.
+    /// </summary>
+    public bool SoundEnabled { get; set; } = true;
 }
 
 public sealed class WindowSave

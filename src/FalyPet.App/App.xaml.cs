@@ -26,6 +26,7 @@ public partial class App : System.Windows.Application
     private FullscreenDetector? _fullscreen;
     private UpdateService? _updates;
     private DispatcherTimer? _updateTimer;
+    private SoundService? _sound;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -75,7 +76,8 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        _petWindow = new PetWindow(_store, _save, sprites);
+        _sound ??= new SoundService { Enabled = _save.SoundEnabled };
+        _petWindow = new PetWindow(_store, _save, sprites, _sound);
 
         _tray = new TrayIconService();
         _petWindow.TrayNotificationRequested += (_, message) => _tray?.ShowMessage("FalyPet", message);
@@ -140,7 +142,8 @@ public partial class App : System.Windows.Application
 
         if (!RunOnboarding(sprites)) { Shutdown(); return; }
 
-        _petWindow = new PetWindow(_store, _save, sprites);
+        _sound ??= new SoundService { Enabled = _save.SoundEnabled };
+        _petWindow = new PetWindow(_store, _save, sprites, _sound);
         _petWindow.TrayNotificationRequested += (_, message) => _tray?.ShowMessage("FalyPet", message);
         _petWindow.Show();
         _tray?.SetPetVisible(_petWindow.IsPetVisible);
