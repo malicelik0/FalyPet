@@ -21,7 +21,7 @@ namespace FalyPet.App.Rendering;
 /// </summary>
 internal sealed class SpriteCache
 {
-    private readonly record struct Key(string Species, GrowthStage Stage, PetAnimation Anim, int Frame, bool FaceLeft, string Accessory, int Gaze);
+    private readonly record struct Key(string Species, GrowthStage Stage, PetAnimation Anim, int Frame, bool FaceLeft, string Accessory, int Gaze, bool Blinking);
 
     private readonly Dictionary<Key, BitmapSource> _sprites = [];
     private readonly Dictionary<Key, AlphaMask> _masks = [];
@@ -33,12 +33,12 @@ internal sealed class SpriteCache
     public bool UsingRealArt => _sheets.RootExists;
 
     public BitmapSource Get(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
-        bool faceLeft, AccessoryDefinition? accessory = null, int gaze = 0)
+        bool faceLeft, AccessoryDefinition? accessory = null, int gaze = 0, bool blinking = false)
     {
-        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "", gaze);
+        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "", gaze, blinking);
         if (_sprites.TryGetValue(key, out var cached)) return cached;
 
-        var sprite = Build(species, stage, anim, frame, accessory, gaze);
+        var sprite = Build(species, stage, anim, frame, accessory, gaze, blinking);
         if (faceLeft) sprite = MirrorHorizontally(sprite);
 
         _sprites[key] = sprite;
@@ -53,7 +53,7 @@ internal sealed class SpriteCache
     public AlphaMask GetMask(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
         bool faceLeft, AccessoryDefinition? accessory = null)
     {
-        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "", 0);
+        var key = new Key(species.Id, stage, anim, frame, faceLeft, accessory?.Id ?? "", 0, false);
         if (_masks.TryGetValue(key, out var cached)) return cached;
 
         var mask = AlphaMask.FromBitmap(Get(species, stage, anim, frame, faceLeft, accessory));
@@ -62,7 +62,7 @@ internal sealed class SpriteCache
     }
 
     private BitmapSource Build(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
-        AccessoryDefinition? accessory, int gaze)
+        AccessoryDefinition? accessory, int gaze, bool blinking)
     {
         var sheetFrame = _sheets.TryGetFrame(species, stage, anim, frame);
 
@@ -70,7 +70,7 @@ internal sealed class SpriteCache
         {
             return stage == GrowthStage.Egg
                 ? PetSpriteFactory.CreateEgg(species, frame)
-                : PetSpriteFactory.Create(species, stage, anim, frame, accessory, gaze);
+                : PetSpriteFactory.Create(species, stage, anim, frame, accessory, gaze, blinking);
         }
 
         // Gerçek sanat bulundu. Kostümü sanatın içinde beklemek yerine üstüne

@@ -32,8 +32,12 @@ internal static class PetSpriteFactory
     /// Sprite hep sağa bakar çizilip sola aynalandığı için, çağıran taraf
     /// aynalamayı hesaba katmak zorunda.
     /// </param>
+    /// <param name="blinking">
+    /// Göz o an kapalı mı. Animasyon karesinden AYRI bir zamanlayıcıdan geliyor:
+    /// kareye bağlıyken pet saniyede ~2.7 kez göz kırpıyordu.
+    /// </param>
     public static WriteableBitmap Create(SpeciesDefinition species, GrowthStage stage, PetAnimation anim, int frame,
-        AccessoryDefinition? accessory = null, int gaze = 0)
+        AccessoryDefinition? accessory = null, int gaze = 0, bool blinking = false)
     {
         if (stage == GrowthStage.Egg) return CreateEgg(species, frame);
 
@@ -49,9 +53,9 @@ internal static class PetSpriteFactory
         var effectiveGaze = anim == PetAnimation.Walk ? 1 : Math.Clamp(gaze, -1, 1);
 
         if (species.Body == BodyShape.Blob)
-            DrawBlob(canvas, species, m, bob, anim, frame, outline, accessory, anchor, effectiveGaze);
+            DrawBlob(canvas, species, m, bob, anim, frame, outline, accessory, anchor, effectiveGaze, blinking);
         else
-            DrawCreature(canvas, species, m, bob, anim, frame, outline, accessory, anchor, effectiveGaze);
+            DrawCreature(canvas, species, m, bob, anim, frame, outline, accessory, anchor, effectiveGaze, blinking);
 
         return canvas.ToBitmap();
     }
@@ -187,7 +191,7 @@ internal static class PetSpriteFactory
     // ---------------------------------------------------------------- normal yaratık
 
     private static void DrawCreature(SpriteCanvas c, SpeciesDefinition s, Metrics m,
-        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor, int gaze)
+        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor, int gaze, bool blinking)
     {
         var bodyCy = Ground - m.BodyRy + bob;
 
@@ -209,12 +213,12 @@ internal static class PetSpriteFactory
 
         DrawMarkings(c, s, m, bodyCy, headCx, headCy);
         c.Outline(outline);
-        DrawFace(c, s, headCx, headCy, m.HeadR, anim, frame, outline, gaze);
+        DrawFace(c, s, headCx, headCy, m.HeadR, anim, frame, outline, gaze, blinking);
         DrawAccessory(c, accessory, headCx, headCy, m.HeadR);
     }
 
     private static void DrawBlob(SpriteCanvas c, SpeciesDefinition s, Metrics m,
-        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor, int gaze)
+        double bob, PetAnimation anim, int frame, uint outline, AccessoryDefinition? accessory, HeadAnchor anchor, int gaze, bool blinking)
     {
         // Jöle/hayalet/ahtapotta ayrı kafa yok: tek kütle, yüz üst kısmında.
         // Yükseklik tavana göre kısıtlanıyor, yoksa yetişkin blob kareyi taşıyor.
@@ -233,7 +237,7 @@ internal static class PetSpriteFactory
         DrawMarkings(c, s, m, cy + ry * 0.35, CenterX, cy - ry * 0.30);
         c.Outline(outline);
 
-        DrawFace(c, s, CenterX, cy - ry * 0.28, m.HeadR * 0.95, anim, frame, outline, gaze);
+        DrawFace(c, s, CenterX, cy - ry * 0.28, m.HeadR * 0.95, anim, frame, outline, gaze, blinking);
         DrawAccessory(c, accessory, anchor.X, anchor.Y, anchor.R);
     }
 
@@ -379,7 +383,7 @@ internal static class PetSpriteFactory
     // ---------------------------------------------------------------- yüz
 
     private static void DrawFace(SpriteCanvas c, SpeciesDefinition s, double hx, double hy, double r,
-        PetAnimation anim, int frame, uint outline, int gaze)
+        PetAnimation anim, int frame, uint outline, int gaze, bool blinking)
     {
         // Küskün pet sırtını döner: yüz hiç çizilmez. En güçlü ifade, ifadenin yokluğudur.
         if (anim == PetAnimation.Sulk) return;
@@ -415,8 +419,9 @@ internal static class PetSpriteFactory
                 return;
 
             default:
-                // Idle'da üçüncü karede göz kırpma. Küçük bir detay ama pet'i "canlı" yapan şey bu.
-                if (anim == PetAnimation.Idle && frame == 2)
+                // Göz kırpma dışarıdan geliyor (PetBehavior'ın kendi zamanlayıcısı).
+                // Animasyon karesine bağlıyken 375 ms'de bir kırpıyordu — titreme gibi.
+                if (blinking)
                 {
                     DrawClosedEye(c, hx - eyeDx, eyeY, ink);
                     DrawClosedEye(c, hx + eyeDx, eyeY, ink);

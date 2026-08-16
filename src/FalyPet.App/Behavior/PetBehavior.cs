@@ -31,11 +31,51 @@ internal sealed class PetBehavior
     public bool FaceLeft { get; private set; }
     public double X { get; private set; }
 
+    /// <summary>Göz o an kapalı mı.</summary>
+    public bool IsBlinking { get; private set; }
+
+    /// <summary>
+    /// Göz kırpma KENDİ zamanlayıcısında, animasyon karesinde değil.
+    ///
+    /// Önce "idle'ın 2. karesinde gözler kapalı" diye kurulmuştu. Ama idle 3 kare
+    /// ve 8 fps: 2. kare her 375 milisaniyede bir geliyor, yani pet saniyede ~2.7
+    /// kez göz kırpıyordu. İnsan 3-5 saniyede bir kırpar; o hızda pet titriyor
+    /// gibi görünüyordu.
+    /// </summary>
+    private static readonly TimeSpan BlinkDuration = TimeSpan.FromMilliseconds(130);
+
+    private TimeSpan _untilBlink;
+    private TimeSpan _blinkRemaining;
+
     public PetBehavior(double startX)
     {
         X = startX;
         _restRemaining = RandomRest();
+        _untilBlink = RandomBlinkGap();
     }
+
+    private TimeSpan RandomBlinkGap() => TimeSpan.FromSeconds(2.5 + _random.NextDouble() * 4.0);
+
+    private void AdvanceBlink(TimeSpan delta)
+    {
+        if (_blinkRemaining > TimeSpan.Zero)
+        {
+            _blinkRemaining -= delta;
+            IsBlinking = _blinkRemaining > TimeSpan.Zero;
+            if (!IsBlinking) _untilBlink = RandomBlinkGap();
+            return;
+        }
+
+        _untilBlink -= delta;
+        if (_untilBlink > TimeSpan.Zero) return;
+
+        _blinkRemaining = BlinkDuration;
+        IsBlinking = true;
+        BlinkCount++;
+    }
+
+    /// <summary>Toplam göz kırpma sayısı — teşhis kaydının hızı ölçebilmesi için.</summary>
+    public int BlinkCount { get; private set; }
 
     /// <summary>
     /// Bir bakım eylemini geçici olarak oynatır (yeme, içme, oyun, yıkanma).
@@ -62,6 +102,7 @@ internal sealed class PetBehavior
     public void Update(TimeSpan delta, PetSimulation sim, double minX, double maxX, bool cursorOver)
     {
         AdvanceFrameClock(delta);
+        AdvanceBlink(delta);
 
         if (_actionRemaining > TimeSpan.Zero)
         {
@@ -158,10 +199,12 @@ internal sealed class PetBehavior
     }
 
     /// <summary>
-    /// İki gezinme arasındaki bekleme. Eskiden 3-10 saniyeydi ve pet neredeyse
-    /// sürekli yürüyordu; masaüstünde bu dikkat dağıtıcı ve pet'i "kaybettiriyor".
+    /// İki gezinme arasındaki bekleme. Üç değer denendi:
+    ///   3-10 sn  → pet neredeyse sürekli yürüyordu, kullanıcı onu kaybediyordu
+    ///   12-32 sn → çok ölü kaldı, pet donmuş gibi görünüyordu
+    ///   8-22 sn  → şimdiki. Ortalama ~15 saniyede bir kısa bir gezinti.
     /// </summary>
-    private TimeSpan RandomRest() => TimeSpan.FromSeconds(12 + _random.NextDouble() * 20);
+    private TimeSpan RandomRest() => TimeSpan.FromSeconds(8 + _random.NextDouble() * 14);
 
     /// <summary>Sürüklenince gezinme hedefi iptal olur — kullanıcı bıraktığı yerde kalsın.</summary>
     public void OnDragged(double newX)

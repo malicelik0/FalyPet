@@ -47,8 +47,8 @@ public partial class PetWindow : Window
     private TimeSpan _sinceSave;
 
     private AlphaMask _mask;
-    private (GrowthStage Stage, PetAnimation Anim, int Frame, bool Left, string Costume, int Gaze) _renderedKey
-        = (GrowthStage.Egg, PetAnimation.Idle, -1, false, "", 0);
+    private (GrowthStage Stage, PetAnimation Anim, int Frame, bool Left, string Costume, int Gaze, bool Blink) _renderedKey
+        = (GrowthStage.Egg, PetAnimation.Idle, -1, false, "", 0, false);
 
     /// <summary>
     /// Pet'in imlece bakıp bakmadığı. Fare konumu tıkla-geç için zaten her tikte
@@ -289,7 +289,8 @@ public partial class PetWindow : Window
                 $"tamEkranGizledi={_hiddenByFullscreen}",
                 $"enUstte={topmostFlag}",
                 $"tiklaGec={_clickThrough}",
-                $"anim={_behavior.Animation}");
+                $"anim={_behavior.Animation}",
+                $"kirpma={_behavior.BlinkCount}");
 
             System.IO.File.AppendAllText(DiagPath, satir + Environment.NewLine);
         }
@@ -377,12 +378,12 @@ public partial class PetWindow : Window
         // Yumurtada "kare" animasyon karesi değil çatlak sayısıdır.
         var frame = _sim.Stage == GrowthStage.Egg ? _save.Pet!.EggCracks : _behavior.Frame;
         var costumeId = _save.Pet!.EquippedCostumeId ?? "";
-        var key = (_sim.Stage, _behavior.Animation, frame, _behavior.FaceLeft, costumeId, _gaze);
+        var key = (_sim.Stage, _behavior.Animation, frame, _behavior.FaceLeft, costumeId, _gaze, _behavior.IsBlinking);
         if (key == _renderedKey) return;
 
         _renderedKey = key;
         var accessory = AccessoryCatalog.ById(_save.Pet.EquippedCostumeId);
-        SpriteImage.Source = _sprites.Get(_species, key.Item1, key.Item2, key.Item3, key.Item4, accessory, key.Item6);
+        SpriteImage.Source = _sprites.Get(_species, key.Item1, key.Item2, key.Item3, key.Item4, accessory, key.Item6, key.Item7);
         _mask = _sprites.GetMask(_species, key.Item1, key.Item2, key.Item3, key.Item4, accessory);
     }
 
@@ -757,7 +758,7 @@ public partial class PetWindow : Window
         _shop.CostumeChanged += (_, _) =>
         {
             // Anahtarı geçersiz kıl ki bir sonraki tikte sprite yeniden yüklensin.
-            _renderedKey = (_renderedKey.Stage, _renderedKey.Anim, -1, _renderedKey.Left, "", _renderedKey.Gaze);
+            _renderedKey = (_renderedKey.Stage, _renderedKey.Anim, -1, _renderedKey.Left, "", _renderedKey.Gaze, _renderedKey.Blink);
         };
         _shop.Closed += (_, _) => _shop = null;
         _shop.Show();
