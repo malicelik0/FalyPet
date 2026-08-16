@@ -60,6 +60,31 @@ if ($st.ExitCode -ne 0) {
 }
 Get-Content $rapor | Select-Object -First 2 | Write-Host
 
+Write-Host "==> Onceki surum (delta uretimi icin)" -ForegroundColor Cyan
+# vpk, delta paketini cikti klasorundeki ONCEKI .nupkg ile karsilastirarak uretir.
+# O dosya yoksa sessizce yalnizca tam paket cikar ve kullanicilar her guncellemede
+# 78 MB indirir. Bu yuzden yayindaki son surumu indirip klasore koyuyoruz.
+$mevcut = @(Get-ChildItem $cikti -Filter '*-full.nupkg' -ErrorAction SilentlyContinue)
+if ($mevcut.Count -gt 0) {
+    Write-Host "    zaten var: $($mevcut[0].Name)"
+} else {
+    $gh = 'C:\Program Files\GitHub CLI\gh.exe'
+    if (Test-Path $gh) {
+        & $gh auth status 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            New-Item -ItemType Directory -Force $cikti | Out-Null
+            & $gh release download --repo malicelik0/FalyPet --pattern '*-full.nupkg' --dir $cikti 2>&1 | Out-Null
+            $indi = @(Get-ChildItem $cikti -Filter '*-full.nupkg' -ErrorAction SilentlyContinue)
+            if ($indi.Count -gt 0) { Write-Host "    indirildi: $($indi[0].Name)" }
+            else { Write-Host "    yayinda surum yok - yalnizca tam paket uretilecek" -ForegroundColor Yellow }
+        } else {
+            Write-Host "    gh girisi yok - delta uretilemeyecek" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "    gh kurulu degil - delta uretilemeyecek" -ForegroundColor Yellow
+    }
+}
+
 Write-Host "==> Velopack paketi" -ForegroundColor Cyan
 vpk pack `
     --packId FalyPet `
