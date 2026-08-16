@@ -73,7 +73,18 @@ if ($mevcut.Count -gt 0) {
         & $gh auth status 2>&1 | Out-Null
         if ($LASTEXITCODE -eq 0) {
             New-Item -ItemType Directory -Force $cikti | Out-Null
-            & $gh release download --repo malicelik0/FalyPet --pattern '*-full.nupkg' --dir $cikti 2>&1 | Out-Null
+
+            # YALNIZCA en son surumun tam paketi iniyor, hepsi degil.
+            # Velopack manifesti klasorde bulunan her tam paketi referansliyor ve
+            # release'e hepsinin yuklenmesi gerekiyor. Hepsini indirseydik her
+            # surumde yuk 73 MB daha buyurdu (1.0.3'te 300 MB, 1.0.4'te 370 MB...).
+            # Delta uretimi icin bir onceki tam paket yeterli.
+            $sonEtiket = (& $gh release view --repo malicelik0/FalyPet --json tagName --jq .tagName 2>$null)
+            if ($sonEtiket) {
+                $sonSurum = $sonEtiket.TrimStart('v')
+                & $gh release download --repo malicelik0/FalyPet --pattern "FalyPet-$sonSurum-full.nupkg" --dir $cikti 2>&1 | Out-Null
+            }
+
             $indi = @(Get-ChildItem $cikti -Filter '*-full.nupkg' -ErrorAction SilentlyContinue)
             if ($indi.Count -gt 0) { Write-Host "    indirildi: $($indi[0].Name)" }
             else { Write-Host "    yayinda surum yok - yalnizca tam paket uretilecek" -ForegroundColor Yellow }
