@@ -797,14 +797,22 @@ public partial class PetWindow : Window
     {
         if (_picker is { IsVisible: true }) { _picker.Activate(); return; }
 
-        _picker = new OnboardingWindow(_sprites, _save.Pet!.SpeciesId, _save.Pet.Name);
-        _picker.Closed += (_, _) => _picker = null;
+        // YEREL değişken şart. Önce doğrudan _picker alanı üzerinden okunuyordu:
+        //   _picker.Closed += (_, _) => _picker = null;
+        //   if (_picker.ShowDialog() != true) return;
+        //   _save.Pet.SpeciesId = _picker.SelectedSpeciesId;   // <-- _picker NULL
+        // ShowDialog pencere kapanana kadar bekliyor; kapanış sırasında Closed
+        // tetiklenip alanı null yapıyor, dönüşte null referans oluşuyordu.
+        // Sonuç: kullanıcı tür seçince uygulama çöküyor ve seçim kaydedilmiyordu.
+        var picker = new OnboardingWindow(_sprites, _save.Pet!.SpeciesId, _save.Pet.Name);
+        _picker = picker;
+        picker.Closed += (_, _) => _picker = null;
 
-        if (_picker.ShowDialog() != true) return;
+        if (picker.ShowDialog() != true) return;
 
         var eskiTur = _save.Pet.SpeciesId;
-        _save.Pet.SpeciesId = _picker.SelectedSpeciesId;
-        _save.Pet.Name = _picker.PetName;
+        _save.Pet.SpeciesId = picker.SelectedSpeciesId;
+        _save.Pet.Name = picker.PetName;
         _species = SpeciesCatalog.ById(_save.Pet.SpeciesId);
 
         // Anahtarı geçersiz kıl ki bir sonraki tikte yeni tür çizilsin.

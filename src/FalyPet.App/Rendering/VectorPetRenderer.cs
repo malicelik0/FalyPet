@@ -188,6 +188,9 @@ internal static class VectorPetRenderer
         DrawTail(dc, s, m, bodyCy, anim, frame, pen, body);
         DrawLegs(dc, s, m, bodyCy, anim, frame, pen, body);
 
+        // Kanatlar gövdeden ÖNCE: arkadan çıkıyormuş gibi görünsün.
+        if (s.Traits.HasFlag(PetTrait.Wings)) DrawWings(dc, s, m, bodyCy, anim, frame, pen);
+
         // Gövde
         dc.DrawEllipse(body, pen, new Point(CenterX, bodyCy), m.BodyRx, m.BodyRy);
         DrawMarking(dc, s, m, bodyCy);
@@ -211,8 +214,11 @@ internal static class VectorPetRenderer
 
         if (s.Tail == TailType.Tentacle) DrawTentacles(dc, s, rx, cy + ry, frame, pen, body);
 
-        dc.DrawEllipse(body, pen, new Point(CenterX, cy + ry * squash),
-            rx * (1 + squash), ry * (1 - squash));
+        if (s.Traits.HasFlag(PetTrait.WavyBottom))
+            DrawGhostBody(dc, s, rx * (1 + squash), ry * (1 - squash), cy + ry * squash, frame, pen, body);
+        else
+            dc.DrawEllipse(body, pen, new Point(CenterX, cy + ry * squash),
+                rx * (1 + squash), ry * (1 - squash));
 
         DrawMarking(dc, s, m, cy + ry * 0.35);
 
@@ -336,6 +342,64 @@ internal static class VectorPetRenderer
         }
     }
 
+    /// <summary>
+    /// Hayalet gövdesi: üstü yuvarlak kubbe, ALTI DALGALI.
+    /// Düz elips çizilince hayalet ile jöle birbirinden ayırt edilemiyordu;
+    /// hayaleti hayalet yapan şey o dalgalı etek.
+    /// </summary>
+    private static void DrawGhostBody(DrawingContext dc, SpeciesDefinition s, double rx, double ry,
+        double cy, int frame, Pen pen, Brush body)
+    {
+        var ust = cy - ry;
+        var alt = cy + ry * 0.82;
+        var g = new StreamGeometry();
+
+        using (var c = g.Open())
+        {
+            c.BeginFigure(new Point(CenterX - rx, alt), true, true);
+            // Üst kubbe
+            c.ArcTo(new Point(CenterX + rx, alt), new Size(rx, ry * 1.35), 0, true,
+                SweepDirection.Clockwise, true, true);
+
+            // Alt dalgalar: kare kare kayıyor, akıyormuş hissi veriyor.
+            var dalga = 4;
+            var genislik = rx * 2 / dalga;
+            for (var i = 0; i < dalga; i++)
+            {
+                var x0 = CenterX + rx - i * genislik;
+                var x1 = x0 - genislik;
+                var derinlik = (i + frame) % 2 == 0 ? ry * 0.22 : ry * 0.08;
+                c.QuadraticBezierTo(new Point((x0 + x1) / 2, alt + derinlik), new Point(x1, alt), true, true);
+            }
+        }
+
+        g.Freeze();
+        dc.DrawGeometry(body, pen, g);
+    }
+
+    /// <summary>Ejderha kanadı: gövdenin iki yanından çıkan zar kanat, kanat çırpıyor.</summary>
+    private static void DrawWings(DrawingContext dc, SpeciesDefinition s, Metrics m, double bodyCy,
+        PetAnimation anim, int frame, Pen pen)
+    {
+        var kanat = Fill(Mix(Rgb(s.AccentColor), Colors.White, 0.15));
+        var cirp = anim is PetAnimation.Walk or PetAnimation.Play ? (frame - 1) * 4.0 : 0;
+
+        foreach (var sign in new[] { -1, 1 })
+        {
+            var g = new StreamGeometry();
+            using (var c = g.Open())
+            {
+                var kok = new Point(CenterX + sign * m.BodyRx * 0.5, bodyCy - m.BodyRy * 0.35);
+                c.BeginFigure(kok, true, true);
+                c.LineTo(new Point(kok.X + sign * m.BodyRx * 1.15, bodyCy - m.BodyRy * 1.05 - cirp), true, true);
+                c.LineTo(new Point(kok.X + sign * m.BodyRx * 1.25, bodyCy - m.BodyRy * 0.15 - cirp * 0.4), true, true);
+                c.LineTo(new Point(kok.X + sign * m.BodyRx * 0.55, bodyCy + m.BodyRy * 0.25), true, true);
+            }
+            g.Freeze();
+            dc.DrawGeometry(kanat, pen, g);
+        }
+    }
+
     private static void DrawTentacles(DrawingContext dc, SpeciesDefinition s, double rx, double bottom, int frame, Pen pen, Brush body)
     {
         for (var i = -2; i <= 2; i++)
@@ -349,7 +413,8 @@ internal static class VectorPetRenderer
     private static void DrawLegs(DrawingContext dc, SpeciesDefinition s, Metrics m, double bodyCy,
         PetAnimation anim, int frame, Pen pen, Brush body)
     {
-        if (anim == PetAnimation.Sleep) return;
+        // Hayalet, jöle ve ahtapotun bacağı yok — çizilirse "bacaklı hayalet" olur.
+        if (anim == PetAnimation.Sleep || s.Traits.HasFlag(PetTrait.NoLegs)) return;
 
         var swing = anim == PetAnimation.Walk ? (frame - 1) * 6.0 : 0;
         var foot = Fill(Mix(Rgb(s.BaseColor), Colors.Black, 0.16));
@@ -431,6 +496,10 @@ internal static class VectorPetRenderer
 
         var eyeDx = r * 0.40;
         var eyeY = hy - r * 0.08;
+
+        // Türe özel yüz parçaları GÖZLERDEN ÖNCE: burun/ağız bölgesi arkada kalmalı,
+        // panda lekesi gözün altında olmalı ki gözler onun üstünde görünsün.
+        DrawSpeciesFace(dc, s, hx, hy, r, eyeDx, eyeY);
         var ink = Ink(s.BaseColor);
         var linePen = new Pen(new SolidColorBrush(ink), Stroke * 0.9)
         { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
@@ -473,6 +542,103 @@ internal static class VectorPetRenderer
                 var acik = anim is PetAnimation.Eat or PetAnimation.Drink && frame != 1;
                 Mouth(dc, hx, hy + r * 0.44, r, acik, ink, linePen);
                 return;
+        }
+    }
+
+    /// <summary>
+    /// Türü tanınır kılan yüz parçaları. Kulak ve kuyruk tek başına yetmiyordu —
+    /// pet'ler "aynı gövdeye takılmış farklı kulaklar" gibi duruyordu.
+    /// </summary>
+    private static void DrawSpeciesFace(DrawingContext dc, SpeciesDefinition s,
+        double hx, double hy, double r, double eyeDx, double eyeY)
+    {
+        var t = s.Traits;
+        var ink = Ink(s.BaseColor);
+        var accent = Rgb(s.AccentColor);
+        var incePen = new Pen(new SolidColorBrush(ink), Stroke * 0.55)
+        { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+        incePen.Freeze();
+
+        // Baykuş yüz diski: gözleri çevreleyen iri açık halkalar. Bu olmadan
+        // baykuş, uzun tüyleri yüzünden tavşandan ayırt edilemiyordu.
+        if (t.HasFlag(PetTrait.BigEyes))
+        {
+            foreach (var sign in new[] { -1, 1 })
+            {
+                dc.DrawEllipse(Fill(accent), incePen,
+                    new Point(hx + sign * eyeDx * 1.05, eyeY), r * 0.40, r * 0.42);
+            }
+        }
+
+        // Panda lekesi: pandayı panda yapan tek şey. Gözlerden önce, altlarına.
+        if (t.HasFlag(PetTrait.EyePatch))
+        {
+            foreach (var sign in new[] { -1, 1 })
+                dc.DrawEllipse(Fill(accent), null,
+                    new Point(hx + sign * eyeDx, eyeY + r * 0.02), r * 0.30, r * 0.36);
+        }
+
+        // Açık renk yanaklar (tilki, baykuş): yüzü ikiye bölüp karakter veriyor.
+        if (t.HasFlag(PetTrait.Cheeks))
+        {
+            foreach (var sign in new[] { -1, 1 })
+                dc.DrawEllipse(Fill(accent), null,
+                    new Point(hx + sign * r * 0.52, hy + r * 0.30), r * 0.34, r * 0.30);
+        }
+
+        // Ağız bölgesi: burun ve ağzın oturduğu açık renk alan.
+        if (t.HasFlag(PetTrait.Muzzle))
+            dc.DrawEllipse(Fill(Mix(Rgb(s.BaseColor), Colors.White, 0.62)), null,
+                new Point(hx, hy + r * 0.40), r * 0.36, r * 0.28);
+
+        if (t.HasFlag(PetTrait.TriangleNose))
+        {
+            var g = new StreamGeometry();
+            using (var c = g.Open())
+            {
+                c.BeginFigure(new Point(hx - r * 0.11, hy + r * 0.24), true, true);
+                c.LineTo(new Point(hx + r * 0.11, hy + r * 0.24), true, true);
+                c.LineTo(new Point(hx, hy + r * 0.38), true, true);
+            }
+            g.Freeze();
+            dc.DrawGeometry(Fill(ink), null, g);
+        }
+
+        if (t.HasFlag(PetTrait.RoundNose))
+            dc.DrawEllipse(Fill(ink), null, new Point(hx, hy + r * 0.30), r * 0.13, r * 0.11);
+
+        if (t.HasFlag(PetTrait.Beak))
+        {
+            // Gaga gözlerin ARASINDAN başlıyor ve aşağı uzuyor — baykuşta gaga
+            // yüzün ortasında, kuş olduğunu anlatan asıl işaret bu.
+            var g = new StreamGeometry();
+            using (var c = g.Open())
+            {
+                c.BeginFigure(new Point(hx - r * 0.18, hy - r * 0.06), true, true);
+                c.LineTo(new Point(hx + r * 0.18, hy - r * 0.06), true, true);
+                c.LineTo(new Point(hx, hy + r * 0.44), true, true);
+            }
+            g.Freeze();
+            dc.DrawGeometry(Fill(Rgb(0xF2A83C)), OutlinePen(0xF2A83C, Stroke * 0.6), g);
+        }
+
+        if (t.HasFlag(PetTrait.BuckTeeth))
+        {
+            dc.DrawRoundedRectangle(Fill(Colors.White), incePen,
+                new Rect(hx - r * 0.13, hy + r * 0.44, r * 0.12, r * 0.20), 1.5, 1.5);
+            dc.DrawRoundedRectangle(Fill(Colors.White), incePen,
+                new Rect(hx + r * 0.01, hy + r * 0.44, r * 0.12, r * 0.20), 1.5, 1.5);
+        }
+
+        if (t.HasFlag(PetTrait.Whiskers))
+        {
+            foreach (var sign in new[] { -1, 1 })
+            foreach (var (dy, egim) in new[] { (-0.06, -0.09), (0.06, 0.06) })
+            {
+                dc.DrawLine(incePen,
+                    new Point(hx + sign * r * 0.30, hy + r * (0.30 + dy)),
+                    new Point(hx + sign * r * 0.92, hy + r * (0.30 + dy + egim)));
+            }
         }
     }
 

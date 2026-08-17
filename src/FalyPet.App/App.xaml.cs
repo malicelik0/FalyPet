@@ -74,6 +74,11 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        // Beklenmeyen bir hata olursa: önce KAYDI KURTAR, sonra kullanıcıya söyle.
+        // Bu olmadan uygulama sessizce yok oluyordu — kullanıcı ne olduğunu
+        // anlamıyor, üstelik o ana kadarki ilerleme de diske yazılmamış oluyordu.
+        DispatcherUnhandledException += OnUnhandledException;
+
         _store = new SaveStore();
         _save = _store.Load();
 
@@ -159,6 +164,40 @@ public partial class App : System.Windows.Application
         _petWindow.TrayNotificationRequested += (_, message) => _tray?.ShowMessage("FalyPet", message);
         _petWindow.Show();
         _tray?.SetPetVisible(_petWindow.IsPetVisible);
+    }
+
+    /// <summary>
+    /// Yakalanmamış hata: kaydı kurtar, kullanıcıya söyle, ayrıntıyı dosyaya yaz.
+    ///
+    /// Uygulama yine de kapanıyor (bozuk durumda devam etmek daha kötü) ama
+    /// kullanıcı artık ne olduğunu biliyor ve pet'i kaybolmuyor.
+    /// </summary>
+    private void OnUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        var rapor = System.IO.Path.Combine(SaveStore.DefaultDirectory, "hata.txt");
+
+        try
+        {
+            _petWindow?.SaveOnExit();
+        }
+        catch (Exception) { /* kurtarma denemesi başarısızsa da rapora devam */ }
+
+        try
+        {
+            System.IO.Directory.CreateDirectory(SaveStore.DefaultDirectory);
+            System.IO.File.WriteAllText(rapor,
+                $"{DateTimeOffset.Now:u}{Environment.NewLine}{e.Exception}");
+        }
+        catch (Exception) { /* rapor yazılamıyorsa mesajı yine de göster */ }
+
+        MessageBox.Show(
+            $"FalyPet beklenmeyen bir hatayla karşılaştı ve kapanacak.{Environment.NewLine}{Environment.NewLine}" +
+            $"Pet'in kaydedildi, bir şey kaybetmedin.{Environment.NewLine}{Environment.NewLine}" +
+            $"Ayrıntı: {rapor}",
+            "FalyPet", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+        e.Handled = true;
+        Shutdown(1);
     }
 
     private async Task CheckUpdatesAsync(bool announceWhenUpToDate)
