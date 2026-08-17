@@ -153,7 +153,7 @@ internal sealed class SettingsWindow : Window
                 _store.Save(_save);
                 ScaleChangeRequested?.Invoke(this, scale);
                 foreach (var (other, s) in buttons) Highlight(other, s == scale);
-                Report($"Boyut: {label} ({FalyPet.App.Rendering.PetSpriteFactory.Size * scale} piksel)", ok: true);
+                Report($"Boyut: {label} ({PetWindow.SizeUnit * scale} piksel)", ok: true);
             };
 
             buttons.Add((b, scale));

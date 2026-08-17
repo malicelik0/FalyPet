@@ -1,125 +1,93 @@
 # Sanat Şartnamesi
 
-> Gerçek sprite'ları üretecek olan (sen, bir sanatçı ya da AI) bu belgeye uyar.
-> Son güncelleme: 15 Ağustos 2026
+> Son güncelleme: 17 Ağustos 2026
+> **Pixel art bırakıldı, vektör çizgi stiline geçildi.**
 
-## Kural: sanat opsiyoneldir
+---
 
-Motor sprite'ları **prosedürel üretiyor**. Bu klasöre dosya koydukça gerçek sanat
-devreye giriyor, koymadıkça prosedürel devam ediyor. Yani:
+## Neden vektör
 
-- 10 türü birden bitirmek zorunda değilsin. Bir tür ekle, o tür gerçek olur.
-- Bir türün her durumunu çizmek zorunda değilsin. Eksik durum aynı aşamanın
-  `idle`'ına düşer.
-- Hiç çizmezsen oyun yine çalışır.
+1. **Pixel art beğenilmedi.**
+2. **Rekabet:** en büyük rakip [Pets Therapy](https://pets-therapy.com/) 100+ pixel
+   pet sunuyor. Aynı stilde yarışmak bizi kalabalığın içinde kaybeder; çizgi stili
+   ilk bakışta ayırt edilir yapıyor.
+3. **Boyut ayarı serbest kaldı.** Pixel art'ta ölçek tam sayı katı olmak zorundaydı
+   (yoksa pikseller eşitsiz genişlikte çıkıyordu). Vektörde her boyut aynı netlikte.
 
-Kod değişikliği gerekmez; dosyayı koy, uygulamayı aç.
+## Şu anki durum: her şey kodda çiziliyor
 
-## Klasör düzeni
+`VectorPetRenderer` pet'leri WPF vektör çizimiyle üretiyor. Hiçbir görsel dosyası yok.
 
-Uygulamanın yanındaki `Assets\sprites\` altında:
+- **Çizim uzayı:** 100×100 normalize, istenen piksel boyutunda çiziliyor
+- **Üretim boyutu:** 256×256 (`SpriteCache.RenderSize`), aşağı ölçekleniyor
+- **Zemin çizgisi:** y = 92 · **Tavan:** y = 6 · **Merkez:** x = 50
+- **Kontur:** 3.2 birim, yuvarlak uçlu, siyah değil — gövde renginin koyulaştırılmışı
 
-```
-Assets\sprites\
-  kedi\
-    egg.png            4 kare  (0,1,2,3 çatlak)
-    baby_idle.png      3 kare
-    baby_walk.png      3 kare
-    adult_idle.png     3 kare
-    adult_sleep.png    3 kare
-    ...
-  ejderha\
-    ...
+Bir türün görünümü `SpeciesCatalog`'daki **tek satırdan** çıkıyor:
+
+```csharp
+new("ugurbocegi", "Uğur Böceği", BodyShape.Round, EarType.Antennae,
+    TailType.None, MarkingType.LadybugShell, 0xD9342B, 0x241E22),
 ```
 
-**Tür kimlikleri:** `kedi kopek tavsan ejderha jole baykus tilki panda ahtapot hayalet`
-
-**Aşama adları:** `egg baby child teen adult`
-
-**Durum adları:** `idle walk sleep eat drink play wash sick sulk`
-
-**Dosya adı biçimi:** `<aşama>_<durum>.png` — yumurta hariç, o sadece `egg.png`.
-
-## Dosya biçimi
-
-- **PNG**, şeffaf zeminli (alfa kanalı zorunlu)
-- **Yatay şerit**: kareler yan yana
-- **Kare boyutu = görselin yüksekliği**. Genişlik bunun tam katı olmalı.
-  `96x32` = 3 kare, her biri 32x32.
-- **32x32 önerilir.** 64x64 de çalışır (otomatik ölçeklenir) ama pet penceresi
-  tam sayı katıyla büyüttüğü için 32'nin katları en net sonucu verir.
-- **Anti-aliasing yok.** Yarı saydam kenar hem pixel-art stilini bozar hem de
-  tıkla-geç maskesini bulanıklaştırır — pet'in etrafındaki boşluk tıklanabilir
-  hale gelir ve kullanıcının işini engeller.
-
-## Kare sayısı
-
-Durum başına **3 kare, 8 fps**. Daha fazlası çalışır (motor şeritteki kare
-sayısını okur) ama pixel art'ta 3 kare zaten doğru his ve maliyeti en düşük yer.
-
-Yumurta bir istisna: `egg.png` **4 kare** olmalı ve kareler animasyon değil
-**çatlak seviyesidir** — 0, 1, 2, 3 çatlak.
-
-## Yerleşim kuralları
-
-Bunlara uymayan sprite oyunda kayık görünür:
-
-| Kural | Değer |
+| Alan | Seçenekler |
 |---|---|
-| Zemin çizgisi (ayakların bastığı yer) | y = **29** |
-| Üst pay (hiçbir şey buranın üstüne çıkmasın) | y = **1** |
-| Yatay merkez | x = **16** |
-| Kenarlar | sol/sağ/üst/alt kenar pikselleri **şeffaf** olmalı |
+| Gövde | `Round` `Tall` `Wide` `Blob` |
+| Kulak | `None` `Pointed` `Floppy` `Round` `Horns` `Tufts` `Antennae` |
+| Kuyruk | `None` `Thin` `Bushy` `Curl` `Tentacle` |
+| Desen | `None` `Belly` `Stripes` `Spots` `Patch` `LadybugShell` |
 
-32x32 dışında bir boyut kullanıyorsan bu değerleri orantıla (64x64 için zemin y=58).
-
-### Kafa merkezi — kostümler için
-
-Kullanıcı dükkandan şapka/taç aldığında aksesuar **sanatın üstüne bindirilir**;
-yani kostüm varyantlarını çizmen gerekmez. Ama aksesuarın doğru yere oturması
-için kafa merkezinin motorun beklediği yerde olması gerekir.
-
-Beklenen kafa merkezi ve yarıçapı `PetSpriteFactory.GetHeadAnchor` tarafından
-hesaplanıyor. Pratikte:
-
-| Aşama | Kafa merkezi (y) | Kafa yarıçapı |
-|---|---|---|
-| baby | ~8-10 | ~6 |
-| child | ~8 | ~6 |
-| teen | ~7 | ~5.8 |
-| adult | ~6-7 | ~6.2 |
-
-Kesin değerleri görmek için mevcut prosedürel sprite'ları referans al:
-
-```powershell
-dotnet run --project src/FalyPet.App -- --dump-sprite C:\temp\referans
-```
-
-Bu komut bütün türlerin bütün aşama ve durumlarını bir kontakt sayfasına basar.
-**Yeni sanatı bunun üstüne çiz** — oranlar ve zemin çizgisi zaten doğru.
+**Yeni tür eklemek = bir satır veri.** Yeni bir görünüm parçası gerekiyorsa
+(ör. kanat, boynuz çeşidi) enum'a bir değer ve `VectorPetRenderer`'a bir `case`.
 
 ## Denetim
 
-Sanatı koyduktan sonra aynı komutu tekrar çalıştır. Rapor her sprite'ı otomatik
-denetler:
+```powershell
+dotnet run --project src/FalyPet.App -- --dump-sprite C:\temp\sprite
+```
 
-- Tamamen boş mu?
-- Kareyi neredeyse tamamen dolduruyor mu (şeffaf kenar yok)?
-- Üst/alt kenara taşıyor mu?
+`tum-turler.png`: bütün türlerin bütün aşama ve durumları tek sayfada.
+Rapor her sprite'ı otomatik denetliyor — boş mu, kareyi dolduruyor mu, kenara
+taşıyor mu. Sanata dokunduğunda buraya bak.
 
-İlk prosedürel üretimde 110 sprite'ın 48'i bu denetimden kalmıştı. Gözle bakarak
-o hataların çoğu kaçar; rapora bak.
+---
 
-## Ne çizilmeli — öncelik sırası
+## Elle çizilmiş sanat koymak istersen
 
-Bütün türlerin bütün durumlarını çizmek ~750 kare. Sıra şu olmalı:
+Motor hâlâ diskten sprite okuyabiliyor; koyduğun dosya vektör çizimin yerine geçer.
 
-1. **`adult_idle`** — 10 tür. En çok görülen kare. Tek başına uygulamanın
-   görünümünü değiştirir.
-2. **`baby_idle`** — 10 tür. Onboarding'de tür seçim kartlarında görünüyor.
-3. **`adult_walk`, `baby_walk`** — hareket en çok fark edilen ikinci şey.
-4. **`egg.png`** — 10 tür (ya da hepsi için tek ortak yumurta).
-5. **`child_idle`, `teen_idle`** + yürüyüşleri.
-6. Geri kalan durumlar: `sleep sick sulk eat drink play wash`.
+### Klasör düzeni
+`Assets\sprites\<tür>\<aşama>_<durum>.png` — yatay şerit, kare boyutu = yükseklik.
 
-İlk üç adım (~60 kare) uygulamanın %90'ının görünümünü gerçek sanata çevirir.
+**Tür kimlikleri:** `kedi kopek tavsan ejderha jole baykus tilki panda ahtapot hayalet ugurbocegi`
+**Aşamalar:** `egg baby child teen adult` · **Durumlar:** `idle walk sleep eat drink play wash sick sulk`
+
+Yumurta istisnası: `egg.png`, kareler animasyon değil **okşama seviyesi**.
+
+### Kurallar
+- PNG, şeffaf zeminli
+- **256×256 önerilir** (motorun ürettiği boyut). Daha küçük de olur, ölçeklenir.
+- Durum başına **3 kare**
+- Eksik durum aynı aşamanın `idle`'ına düşer; hiç dosya yoksa vektör devreye girer
+- Zemin çizgisi görselin **%92** yüksekliğinde, merkez yatayda ortada
+
+### Kostümler
+Kostüm takılıyken motor **vektör çizime döner.** Sebebi: şapkanın kafanın tam olarak
+nerede olduğunu bilmesi gerekiyor ve her sanatçının çizimi farklı oturur — sessizce
+kayık bir şapka göstermektense tutarlı vektör hâli gösteriliyor.
+
+Kostümlü hâlleri de çizmek istersen dosya adına ekle:
+`adult_idle_sapka.png` (bu yol henüz kodlanmadı, gerekirse eklenir).
+
+## Öncelik sırası
+
+Elle sanat yapılacaksa en yüksek getirili sıra:
+
+1. `adult_idle` — 11 tür. En çok görülen kare.
+2. `baby_idle` — 11 tür. Tür seçim ekranında görünüyor.
+3. `adult_walk`, `baby_walk`
+4. `egg.png`
+5. `child_idle`, `teen_idle` + yürüyüşleri
+6. Geri kalan durumlar
+
+İlk üç adım (~66 kare) uygulamanın görünümünün %90'ını değiştirir.

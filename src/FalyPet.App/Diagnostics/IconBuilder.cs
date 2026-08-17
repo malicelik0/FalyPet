@@ -30,9 +30,11 @@ internal static class IconBuilder
 
     public static string Write(string path)
     {
-        var source = PetSpriteFactory.CreateEgg(
-            SpeciesCatalog.All[0],
-            SimulationRules.EggCracksRequired / 2);   // yarı çatlamış: karakterli ama tanınır
+        // Yarı çatlamış yumurta: karakterli ama tanınır. Vektör çizildiği için
+        // en büyük ikon boyutunda (256) doğrudan üretiliyor, ölçeklenmiyor.
+        var source = VectorPetRenderer.Render(
+            SpeciesCatalog.All[0], Core.Model.GrowthStage.Egg, Core.Model.PetAnimation.Idle,
+            SimulationRules.EggCracksRequired / 2, null, 0, false, 256);
 
         // 256 dışındaki boyutlar DIB (klasik BMP) olarak gömülüyor, yalnızca 256 PNG.
         // Hepsini PNG yapmak denendi ve System.Drawing.Icon okuyamadı: PNG sıkıştırmalı

@@ -89,8 +89,8 @@ public partial class PetWindow : Window
         _sim = new PetSimulation(_save.Pet);
         _lastStage = _sim.Stage;
 
-        Width = PetSpriteFactory.Size * CurrentScale;
-        Height = PetSpriteFactory.Size * CurrentScale;
+        Width = SizeUnit *CurrentScale;
+        Height = SizeUnit *CurrentScale;
 
         _hiddenByUser = save.Window.Hidden;
         _behavior = new PetBehavior(save.Window.X ?? 0);
@@ -110,6 +110,15 @@ public partial class PetWindow : Window
     public bool IsPetVisible => !_hiddenByUser && !_hiddenByFullscreen;
 
     // ---------------------------------------------------------------- boyut
+
+    /// <summary>
+    /// Boyut kademelerinin birimi. Ölçek × birim = pencere kenarı (96'dan 256'ya).
+    ///
+    /// Pixel-art döneminden kalan bir sayı: o zaman sprite 32x32'ydi ve ölçek tam
+    /// sayı katı olmak zorundaydı. Vektöre geçtikten sonra bu kısıt kalktı ama
+    /// kademeler aynı bırakıldı — kullanıcının alıştığı boyutlar değişmesin diye.
+    /// </summary>
+    public const int SizeUnit = 32;
 
     private int CurrentScale => Math.Clamp(_save.PetScale, SaveData.MinPetScale, SaveData.MaxPetScale);
 
@@ -140,8 +149,8 @@ public partial class PetWindow : Window
         var merkezX = Left + Width / 2;
 
         _save.PetScale = scale;
-        Width = PetSpriteFactory.Size * scale;
-        Height = PetSpriteFactory.Size * scale;
+        Width = SizeUnit *scale;
+        Height = SizeUnit *scale;
 
         Left = merkezX - Width / 2;
         Top = altKenar - Height;
@@ -699,7 +708,7 @@ public partial class PetWindow : Window
 
         foreach (var (scale, label) in ScaleOptions)
         {
-            var px = PetSpriteFactory.Size * scale;
+            var px = SizeUnit *scale;
             var item = new MenuItem { Header = $"{label}  ({px}px)", IsCheckable = true, Tag = scale };
             item.Click += (_, _) => SetScale(scale);
             root.Items.Add(item);

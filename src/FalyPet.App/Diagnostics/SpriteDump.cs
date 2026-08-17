@@ -20,9 +20,9 @@ namespace FalyPet.App.Diagnostics;
 /// </summary>
 internal static class SpriteDump
 {
-    private const int Cell = SpriteCanvas.Size;
-    private const int Scale = 3;
-    private const int Pad = 2;
+    /// <summary>Kontakt sayfasındaki her karenin piksel boyutu.</summary>
+    private const int Cell = 96;
+    private const int Pad = 4;
 
     public static string Run(string directory)
     {
@@ -88,7 +88,7 @@ internal static class SpriteDump
         var cols = Columns.Length;
         var rows = species.Count;
 
-        var cellPx = Cell * Scale + Pad * 2;
+        var cellPx = Cell + Pad * 2;
         var width = cols * cellPx;
         var height = rows * cellPx;
         var sheet = new byte[width * height * 4];
@@ -109,15 +109,14 @@ internal static class SpriteDump
             var def = species[r];
             var spec = Columns[col];
 
-            var sprite = spec.Stage == GrowthStage.Egg
-                ? PetSpriteFactory.CreateEgg(def, spec.Frame)
-                : PetSpriteFactory.Create(def, spec.Stage, spec.Anim, spec.Frame, null, spec.Gaze);
+            var sprite = VectorPetRenderer.Render(def, spec.Stage, spec.Anim, spec.Frame,
+                null, spec.Gaze, blinking: false, SpriteCache.RenderSize);
 
             checkedCount++;
             var problem = Inspect(sprite, $"{def.Id}/{spec.Label}");
             if (problem is not null) problems.Add(problem);
 
-            Blit(sheet, width, sprite, col * cellPx + Pad, r * cellPx + Pad, Scale);
+            Blit(sheet, width, sprite, col * cellPx + Pad, r * cellPx + Pad, Cell);
         }
 
         var bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
@@ -149,27 +148,50 @@ internal static class SpriteDump
         return null;
     }
 
-    private static void Blit(byte[] dest, int destWidth, BitmapSource src, int dx, int dy, int scale)
+    /// <summary>
+    /// Sprite'ı <paramref name="target"/> boyutuna küçültüp zemine bindirir.
+    ///
+    /// Vektör sprite'lar 256x256 geliyor, kontakt sayfası hücresi 96 — yani bu bir
+    /// KÜÇÜLTME. Eski sürüm yalnızca tam sayı katıyla büyütebiliyordu (pixel-art
+    /// içindi). Kutu ortalaması kullanılıyor, yoksa ince çizgiler kayboluyor.
+    /// </summary>
+    private static void Blit(byte[] dest, int destWidth, BitmapSource src, int dx, int dy, int target)
     {
         var w = src.PixelWidth;
         var h = src.PixelHeight;
         var buffer = new byte[w * h * 4];
         src.CopyPixels(buffer, w * 4, 0);
 
-        for (var y = 0; y < h * scale; y++)
-        for (var x = 0; x < w * scale; x++)
+        var blockX = Math.Max(1, w / target);
+        var blockY = Math.Max(1, h / target);
+
+        for (var y = 0; y < target; y++)
+        for (var x = 0; x < target; x++)
         {
-            var si = ((y / scale) * w + (x / scale)) * 4;
-            var alpha = buffer[si + 3];
-            if (alpha == 0) continue;
+            double b = 0, g = 0, r = 0, a = 0;
+            var sayac = 0;
+
+            for (var by = 0; by < blockY; by++)
+            for (var bx = 0; bx < blockX; bx++)
+            {
+                var sx = Math.Min(w - 1, x * w / target + bx);
+                var sy = Math.Min(h - 1, y * h / target + by);
+                var si = (sy * w + sx) * 4;
+
+                b += buffer[si + 0]; g += buffer[si + 1]; r += buffer[si + 2]; a += buffer[si + 3];
+                sayac++;
+            }
+
+            if (sayac == 0) continue;
+            var alpha = a / sayac / 255.0;
+            if (alpha <= 0.004) continue;
 
             var di = ((dy + y) * destWidth + (dx + x)) * 4;
             if (di < 0 || di + 3 >= dest.Length) continue;
 
-            var a = alpha / 255.0;
-            dest[di + 0] = (byte)(buffer[si + 0] * a + dest[di + 0] * (1 - a));
-            dest[di + 1] = (byte)(buffer[si + 1] * a + dest[di + 1] * (1 - a));
-            dest[di + 2] = (byte)(buffer[si + 2] * a + dest[di + 2] * (1 - a));
+            dest[di + 0] = (byte)(b / sayac * alpha + dest[di + 0] * (1 - alpha));
+            dest[di + 1] = (byte)(g / sayac * alpha + dest[di + 1] * (1 - alpha));
+            dest[di + 2] = (byte)(r / sayac * alpha + dest[di + 2] * (1 - alpha));
             dest[di + 3] = 255;
         }
     }

@@ -54,10 +54,14 @@ internal sealed class AlphaMask
 
     /// <summary>
     /// Bu noktanın pet'e mi yoksa boşluğa mı denk geldiği.
-    /// Eşik sıfır değil: konturun kenarındaki yarı saydam pikseller yüzünden
-    /// tıklamanın "kayması" istenmiyor.
+    ///
+    /// Eşik yüksek tutuluyor: vektör çizimde kenarlar yumuşatılmış (anti-aliased),
+    /// yani siluetin dışında birkaç piksellik yarı saydam bir halka var. Eşik düşük
+    /// olsaydı o halka da "pet" sayılır, kullanıcı pet'in yanındaki boşluğa
+    /// tıkladığında tıklama alttaki pencereye geçmezdi.
+    /// Pixel-art'ta kenar keskin olduğu için 24 yetiyordu.
     /// </summary>
     public bool IsOpaqueAt(int x, int y) => Sample(x, y) >= OpacityThreshold;
 
-    public const byte OpacityThreshold = 24;
+    public const byte OpacityThreshold = 128;
 }

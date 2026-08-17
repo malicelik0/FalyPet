@@ -94,7 +94,7 @@ internal sealed class OnboardingWindow : Window
             Height = 64,
             Stretch = Stretch.Fill,
         };
-        RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.NearestNeighbor);
+        RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
 
         var content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
         content.Children.Add(image);

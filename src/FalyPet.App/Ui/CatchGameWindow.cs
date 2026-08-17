@@ -80,7 +80,7 @@ internal sealed class CatchGameWindow : Window
             Height = PetSize,
             Stretch = Stretch.Fill,
         };
-        RenderOptions.SetBitmapScalingMode(_pet, BitmapScalingMode.NearestNeighbor);
+        RenderOptions.SetBitmapScalingMode(_pet, BitmapScalingMode.HighQuality);
 
         BuildScene();
         _overlay = BuildOverlay(out _actionButton);

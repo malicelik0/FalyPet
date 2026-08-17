@@ -27,6 +27,15 @@ internal sealed class SpriteCache
     private readonly Dictionary<Key, AlphaMask> _masks = [];
     private readonly SpriteSheetLibrary _sheets;
 
+    /// <summary>
+    /// Vektör çizimin üretildiği piksel boyutu.
+    ///
+    /// En büyük pet boyutuyla (256) aynı: o boyutta 1:1, daha küçük boyutlarda
+    /// yüksek kaliteli küçültme. Vektör olduğu için her boyutta net kalıyor —
+    /// pixel-art'ta ölçek tam sayı katı olmak zorundaydı, artık değil.
+    /// </summary>
+    public const int RenderSize = 256;
+
     public SpriteCache(SpriteSheetLibrary? sheets = null) => _sheets = sheets ?? new SpriteSheetLibrary();
 
     /// <summary>Teşhis için: gerçek sanat klasörü bulundu mu?</summary>
@@ -68,19 +77,22 @@ internal sealed class SpriteCache
 
         if (sheetFrame is null)
         {
-            return stage == GrowthStage.Egg
-                ? PetSpriteFactory.CreateEgg(species, frame)
-                : PetSpriteFactory.Create(species, stage, anim, frame, accessory, gaze, blinking);
+            // Vektör olarak çiziliyor: yumuşak kenar, çizgi stili, her boyutta net.
+            return VectorPetRenderer.Render(species, stage, anim, frame, accessory, gaze, blinking, RenderSize);
         }
 
-        // Gerçek sanat bulundu. Kostümü sanatın içinde beklemek yerine üstüne
-        // bindiriyoruz — böylece bir sanatçı 10 tür × 5 kostüm varyantı çizmek
-        // zorunda kalmıyor, sadece temel pet'i çiziyor.
-        if (stage == GrowthStage.Egg || accessory is null) return sheetFrame;
-
-        var anchor = PetSpriteFactory.GetHeadAnchor(species, stage, anim, frame, accessory);
-        var overlay = PetSpriteFactory.RenderAccessoryOnly(accessory, anchor);
-        return overlay is null ? sheetFrame : Composite(sheetFrame, overlay);
+        // Kostüm takılıysa vektör çizime dönülüyor.
+        //
+        // Gerekçe: kostümü gerçek sanatın üstüne bindirmek, aksesuarın kafanın tam
+        // olarak nerede olduğunu bilmesini gerektiriyor. Pixel-art'ta bu bilgi tek
+        // bir formülden geliyordu; gerçek sanatta her sanatçının çizimi farklı olur
+        // ve şapka yanlış yere oturur. Sessizce kayık bir şapka göstermektense
+        // tutarlı vektör hâli gösteriliyor.
+        //
+        // Sanatçı kostüm varyantlarını da çizerse, dosya adına ekleyerek verebilir
+        // (bkz. mds/03-SANAT.md) ve bu yol devreye hiç girmez.
+        return accessory is null || stage == GrowthStage.Egg ? sheetFrame : VectorPetRenderer.Render(
+            species, stage, anim, frame, accessory, gaze, blinking, RenderSize);
     }
 
     /// <summary>

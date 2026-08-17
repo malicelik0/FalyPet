@@ -1,9 +1,9 @@
 namespace FalyPet.Core.Content;
 
 public enum BodyShape { Round, Tall, Wide, Blob }
-public enum EarType { None, Pointed, Floppy, Round, Horns, Tufts }
+public enum EarType { None, Pointed, Floppy, Round, Horns, Tufts, Antennae }
 public enum TailType { None, Thin, Bushy, Curl, Tentacle }
-public enum MarkingType { None, Belly, Stripes, Spots, Patch }
+public enum MarkingType { None, Belly, Stripes, Spots, Patch, LadybugShell }
 
 /// <summary>
 /// Bir pet türünün tanımı. Sprite'lar bu tanımdan üretilir — yani yeni bir tür
@@ -42,6 +42,8 @@ public static class SpeciesCatalog
         new("panda",    "Panda",    BodyShape.Wide,  EarType.Round,   TailType.Thin,     MarkingType.Patch,   0xF4F4F0, 0x3A3A44),
         new("ahtapot",  "Ahtapot",  BodyShape.Blob,  EarType.None,    TailType.Tentacle, MarkingType.Spots,   0xE87FA8, 0xA85B96),
         new("hayalet",  "Hayalet",  BodyShape.Blob,  EarType.None,    TailType.None,     MarkingType.None,    0xC9D8F0, 0xFFFFFF),
+        // Uğur böceği: yuvarlak kabuk, anten, kabuğu ikiye bölen çizgi ve benekler.
+        new("ugurbocegi", "Uğur Böceği", BodyShape.Round, EarType.Antennae, TailType.None, MarkingType.LadybugShell, 0xD9342B, 0x241E22),
     ];
 
     public static SpeciesDefinition ById(string id) =>

@@ -93,7 +93,7 @@ internal sealed class ShopWindow : Window
             Height = 72,
             Stretch = Stretch.Fill,
         };
-        RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.NearestNeighbor);
+        RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
 
         var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
         stack.Children.Add(image);
