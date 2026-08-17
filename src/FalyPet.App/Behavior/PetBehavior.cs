@@ -14,9 +14,24 @@ namespace FalyPet.App.Behavior;
 /// </summary>
 internal sealed class PetBehavior
 {
-    /// <summary>Pixel art'ın doğru kare hızı. 60 fps hem yanlış görünür hem boşuna CPU yakar.</summary>
-    private static readonly TimeSpan FrameDuration = TimeSpan.FromMilliseconds(125);
     private const int FrameCount = 3;
+
+    /// <summary>
+    /// Kare süresi DURUMA GÖRE değişiyor.
+    ///
+    /// Hepsi 125 ms iken pet dururken bile saniyede ~2,7 kez zıplıyordu: idle'ın
+    /// 3 karesi o hızda dönünce nefes alma hareketi titremeye dönüşüyor. Yürüyüş
+    /// hızlı olmalı (bacaklar), durma yavaş olmalı (nefes).
+    /// </summary>
+    private static TimeSpan FrameDurationFor(PetAnimation anim) => anim switch
+    {
+        PetAnimation.Walk => TimeSpan.FromMilliseconds(130),
+        PetAnimation.Play => TimeSpan.FromMilliseconds(140),
+        PetAnimation.Eat or PetAnimation.Drink or PetAnimation.Wash => TimeSpan.FromMilliseconds(220),
+        PetAnimation.Sleep => TimeSpan.FromMilliseconds(900),
+        PetAnimation.Sick or PetAnimation.Sulk => TimeSpan.FromMilliseconds(800),
+        _ => TimeSpan.FromMilliseconds(650),   // Idle: yavaş nefes
+    };
 
     private readonly Random _random = new();
 
@@ -130,10 +145,13 @@ internal sealed class PetBehavior
 
     private void AdvanceFrameClock(TimeSpan delta)
     {
+        // O anki animasyonun süresi kullanılıyor (bir tik gecikmeli, fark edilmez).
+        var sure = FrameDurationFor(Animation);
+
         _frameClock += delta;
-        while (_frameClock >= FrameDuration)
+        while (_frameClock >= sure)
         {
-            _frameClock -= FrameDuration;
+            _frameClock -= sure;
             Frame = (Frame + 1) % FrameCount;
         }
     }
@@ -158,7 +176,7 @@ internal sealed class PetBehavior
             }
             else
             {
-                var menzil = (maxX - minX) * 0.18;
+                var menzil = (maxX - minX) * 0.35;
                 var hedef = X + (_random.NextDouble() * 2 - 1) * menzil;
                 _targetX = Math.Clamp(hedef, minX, maxX);
             }
@@ -199,12 +217,17 @@ internal sealed class PetBehavior
     }
 
     /// <summary>
-    /// İki gezinme arasındaki bekleme. Üç değer denendi:
-    ///   3-10 sn  → pet neredeyse sürekli yürüyordu, kullanıcı onu kaybediyordu
-    ///   12-32 sn → çok ölü kaldı, pet donmuş gibi görünüyordu
-    ///   8-22 sn  → şimdiki. Ortalama ~15 saniyede bir kısa bir gezinti.
+    /// İki gezinme arasındaki bekleme. Dört değer denendi:
+    ///   3-10 sn  → pet kayboluyordu (ama o zaman fareyle durdurma yoktu)
+    ///   12-32 sn → çok ölü kaldı
+    ///   8-22 sn  → hâlâ "çok sabit duruyor" bulundu
+    ///   1,5-4 sn → şimdiki. Pet neredeyse sürekli hareket ediyor.
+    ///
+    /// Kısa bekleme artık güvenli: fare üstüne gelince pet DURUYOR, yani
+    /// kullanıcı onu istediği anda yakalayabiliyor. Kaybolma şikayetini çözen
+    /// şey beklemenin uzunluğu değil, o davranıştı.
     /// </summary>
-    private TimeSpan RandomRest() => TimeSpan.FromSeconds(8 + _random.NextDouble() * 14);
+    private TimeSpan RandomRest() => TimeSpan.FromSeconds(1.5 + _random.NextDouble() * 2.5);
 
     /// <summary>Sürüklenince gezinme hedefi iptal olur — kullanıcı bıraktığı yerde kalsın.</summary>
     public void OnDragged(double newX)

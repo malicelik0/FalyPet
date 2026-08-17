@@ -35,7 +35,9 @@ public partial class PetWindow : Window
     private readonly SaveData _save;
     private readonly SpriteCache _sprites;
     private readonly SoundService _sound;
-    private readonly SpeciesDefinition _species;
+
+    /// <summary>Salt okunur DEĞİL: kullanıcı pet'i istediği zaman değiştirebiliyor.</summary>
+    private SpeciesDefinition _species;
     private readonly PetSimulation _sim;
     private readonly PetBehavior _behavior;
     private readonly BubbleWindow _bubble = new();
@@ -302,10 +304,48 @@ public partial class PetWindow : Window
                 $"kirpma={_behavior.BlinkCount}");
 
             System.IO.File.AppendAllText(DiagPath, satir + Environment.NewLine);
+            CaptureOnce();
         }
         catch (System.IO.IOException)
         {
             // Teşhis yazımı asla uygulamayı durdurmamalı.
+        }
+    }
+
+    private bool _captured;
+
+    /// <summary>
+    /// Pencerenin GERÇEKTEN çizdiği görüntüyü bir kez PNG olarak kaydeder.
+    ///
+    /// Sprite'ı ayrı üretip bakmak yetmiyor: kaynak bitmap düzgün olsa da
+    /// pencereye ölçeklenirken bozulabilir. "Hâlâ pixel art görünüyor" gibi bir
+    /// şikayeti ancak kullanıcının ekranında oluşan piksellere bakarak
+    /// çözebiliyoruz — bu dosya tam olarak onu veriyor.
+    /// </summary>
+    private void CaptureOnce()
+    {
+        if (_captured || DiagPath is null) return;
+        _captured = true;
+
+        try
+        {
+            var w = (int)Math.Round(ActualWidth);
+            var h = (int)Math.Round(ActualHeight);
+            if (w <= 0 || h <= 0) { _captured = false; return; }
+
+            var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96, 96,
+                System.Windows.Media.PixelFormats.Pbgra32);
+            rtb.Render(this);
+
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+
+            using var stream = new System.IO.FileStream(DiagPath + ".png", System.IO.FileMode.Create);
+            encoder.Save(stream);
+        }
+        catch (Exception e) when (e is System.IO.IOException or InvalidOperationException)
+        {
+            // Yakalama başarısızsa teşhis yine de sürsün.
         }
     }
 
@@ -686,6 +726,7 @@ public partial class PetWindow : Window
         AddItem(menu, "Durum", ShowStatus);
         AddItem(menu, "Yakala oyunu", OpenGame);
         AddItem(menu, "Dükkan", OpenShop);
+        AddItem(menu, "Pet değiştir…", ChangeSpecies);
         menu.Items.Add(BuildScaleMenu());
 
         menu.Items.Add(new Separator());
@@ -743,6 +784,36 @@ public partial class PetWindow : Window
         // Tik'i menü her açıldığında gerçek duruma göre tazele: boyut ayarlar
         // penceresinden de değiştirilebiliyor, iki yerin ayrışmaması gerekiyor.
         foreach (var item in _scaleItems) item.IsChecked = (int)item.Tag! == CurrentScale;
+    }
+
+    private OnboardingWindow? _picker;
+
+    /// <summary>
+    /// Tür değiştirme. "Pet'i sıfırla"dan farkı: burada YALNIZCA tür ve isim
+    /// değişiyor, büyüme/coin/kostüm olduğu gibi kalıyor. Kullanıcı canı
+    /// istediğinde pet'ini değiştirebilmeli ama ilerlemesini kaybetmemeli.
+    /// </summary>
+    private void ChangeSpecies()
+    {
+        if (_picker is { IsVisible: true }) { _picker.Activate(); return; }
+
+        _picker = new OnboardingWindow(_sprites, _save.Pet!.SpeciesId, _save.Pet.Name);
+        _picker.Closed += (_, _) => _picker = null;
+
+        if (_picker.ShowDialog() != true) return;
+
+        var eskiTur = _save.Pet.SpeciesId;
+        _save.Pet.SpeciesId = _picker.SelectedSpeciesId;
+        _save.Pet.Name = _picker.PetName;
+        _species = SpeciesCatalog.ById(_save.Pet.SpeciesId);
+
+        // Anahtarı geçersiz kıl ki bir sonraki tikte yeni tür çizilsin.
+        _renderedKey = (_renderedKey.Stage, _renderedKey.Anim, -1, _renderedKey.Left, "", _renderedKey.Gaze, _renderedKey.Blink);
+
+        SaveNow();
+
+        if (eskiTur != _save.Pet.SpeciesId)
+            Say($"Artık bir {_species.DisplayName}!", TimeSpan.FromSeconds(4));
     }
 
     private CatchGameWindow? _game;

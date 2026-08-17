@@ -53,6 +53,8 @@ internal static class SelfTest
             var cases = new (string Name, Func<Window> Create)[]
             {
                 ("OnboardingWindow", () => new OnboardingWindow(sprites)),
+                // Aynı pencere "pet değiştir" modunda da açılıyor; iki yol da sınanmalı.
+                ("OnboardingWindow(değiştir)", () => new OnboardingWindow(sprites, save.Pet!.SpeciesId, save.Pet.Name)),
                 // Duman testinde ses kapalı: otomatik koşuda makineyi öttürmesin.
                 ("PetWindow",        () => new PetWindow(store, save, sprites, new Services.SoundService { Enabled = false })),
                 ("ShopWindow",       () => new ShopWindow(sim, store, save, species, sprites)),

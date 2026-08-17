@@ -30,11 +30,23 @@ internal sealed class OnboardingWindow : Window
     public string SelectedSpeciesId => _selected?.Id ?? SpeciesCatalog.All[0].Id;
     public string PetName => string.IsNullOrWhiteSpace(_nameBox.Text) ? "Momo" : _nameBox.Text.Trim();
 
-    public OnboardingWindow(SpriteCache sprites)
+    /// <summary>
+    /// Aynı pencere iki iş görüyor: ilk açılıştaki tür seçimi ve sonradan
+    /// "pet değiştir". Ayrı iki pencere yazmak, tür kartlarını iki yerde
+    /// tutmak ve birini güncelleyip diğerini unutmak demekti.
+    /// </summary>
+    private readonly bool _degistirmeModu;
+    private readonly string? _mevcutTur;
+    private readonly string _baslangicIsmi;
+
+    public OnboardingWindow(SpriteCache sprites, string? mevcutTur = null, string? mevcutIsim = null)
     {
         _sprites = sprites;
+        _degistirmeModu = mevcutTur is not null;
+        _mevcutTur = mevcutTur;
+        _baslangicIsmi = string.IsNullOrWhiteSpace(mevcutIsim) ? "Momo" : mevcutIsim;
 
-        Title = "FalyPet";
+        Title = _degistirmeModu ? "FalyPet — Pet değiştir" : "FalyPet";
         Width = 560;
         Height = 520;
         ResizeMode = ResizeMode.NoResize;
@@ -47,14 +59,16 @@ internal sealed class OnboardingWindow : Window
         var header = new StackPanel();
         header.Children.Add(new TextBlock
         {
-            Text = "Yumurtanı seç",
+            Text = _degistirmeModu ? "Pet değiştir" : "Yumurtanı seç",
             FontSize = 22,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(0x2A, 0x22, 0x33)),
         });
         header.Children.Add(new TextBlock
         {
-            Text = "Yumurtadan bu tür çıkacak. Sonra değiştiremezsin — acele etme.",
+            Text = _degistirmeModu
+                ? "Sadece tür değişir. Büyüme, coin ve kostümlerin olduğu gibi kalır."
+                : "Yumurtadan bu tür çıkacak. İstediğin zaman değiştirebilirsin.",
             FontSize = 12.5,
             Margin = new Thickness(0, 4, 0, 12),
             Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x62, 0x70)),
@@ -121,6 +135,9 @@ internal sealed class OnboardingWindow : Window
         button.Checked += (_, _) => Select(species, button);
         button.Click += (_, _) => { if (button.IsChecked != true) button.IsChecked = true; };
 
+        // Değiştirme modunda mevcut tür seçili gelsin — kullanıcı nerede olduğunu görsün.
+        if (species.Id == _mevcutTur) button.IsChecked = true;
+
         return button;
     }
 
@@ -142,7 +159,7 @@ internal sealed class OnboardingWindow : Window
 
         hint = new TextBlock
         {
-            Text = "Bir tür seç.",
+            Text = _degistirmeModu ? "Yeni bir tür seç." : "Bir tür seç.",
             FontSize = 12,
             Margin = new Thickness(0, 0, 0, 8),
             Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x62, 0x70)),
@@ -161,10 +178,10 @@ internal sealed class OnboardingWindow : Window
 
         startButton = new Button
         {
-            Content = "Başla",
+            Content = _degistirmeModu ? "Değiştir" : "Başla",
             Width = 110,
             Height = 32,
-            IsEnabled = false,
+            IsEnabled = _degistirmeModu,
             IsDefault = true,
             Margin = new Thickness(10, 0, 0, 0),
         };
@@ -174,7 +191,7 @@ internal sealed class OnboardingWindow : Window
 
         nameBox = new TextBox
         {
-            Text = "Momo",
+            Text = _baslangicIsmi,
             Height = 32,
             FontSize = 13,
             MaxLength = 16,
